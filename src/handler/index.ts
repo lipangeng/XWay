@@ -3,8 +3,11 @@ import { customHandlers } from '../custom/handler';
 import { AppContext } from '../app';
 import { Handler } from '../types';
 import { HomeHandler } from './home';
+import { ContainerHandler } from './container';
 
-const CORE_HANDLERS: Record<ServiceType, Handler> = {};
+const CORE_HANDLERS: Record<ServiceType, Handler> = {
+	[ServiceType.CONTAINER]: ContainerHandler
+};
 
 const ALL_HANDLERS: Record<ServiceType, Handler> = {
 	...CORE_HANDLERS,

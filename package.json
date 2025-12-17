@@ -4,8 +4,8 @@
 	"private": true,
 	"scripts": {
 		"deploy": "XDG_CONFIG_HOME=$(pwd) wrangler deploy",
-		"dev": "XDG_CONFIG_HOME=$(pwd) wrangler dev",
-		"start": "XDG_CONFIG_HOME=$(pwd) wrangler dev",
+		"dev": "XDG_CONFIG_HOME=$(pwd) wrangler dev --local --inspector-port=8888",
+		"start": "XDG_CONFIG_HOME=$(pwd) wrangler dev --local",
 		"test": "XDG_CONFIG_HOME=$(pwd) vitest",
 		"cf-typegen": "XDG_CONFIG_HOME=$(pwd) wrangler types"
 	},
