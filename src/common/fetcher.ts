@@ -1,3 +1,9 @@
+export function cloneHeaders(headers: Headers, keysToRemove: string[] = []) {
+	let copyHeaders = new Headers(headers);
+	keysToRemove.forEach(k => copyHeaders.delete(k));
+	return copyHeaders;
+}
+
 interface CacheEntry {
 	content: string;       // 文件内容 (文本)
 	etag: string | null;   // 源站 ETag

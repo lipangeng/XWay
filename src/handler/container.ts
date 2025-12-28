@@ -1,6 +1,7 @@
 import { Handler } from '../types';
 import { AppContext } from '../app';
 import { RouteMatchType } from '../constants';
+import { cloneHeaders } from '../common/fetcher';
 
 /**
  * 容器镜像仓库专用 Handler
@@ -35,9 +36,7 @@ async function handleRegistryRequest(context: AppContext, upstream: string): Pro
 	const targetUrlStr = upstream.replace(/\/+$/, '') + route.realPath + (new URL(request.url).search);
 
 	// 2. 准备请求头
-	const newHeaders = new Headers(request.headers);
-	newHeaders.set('Host', new URL(upstream).hostname);
-	newHeaders.set('Referer', upstream);
+	const newHeaders = cloneHeaders(request.headers!, ['Host', 'Referer']);
 
 	// 应用配置中的 Auth 覆盖 (私有库支持)
 	if (config.rules?.setHeaders) {
@@ -82,7 +81,7 @@ async function handleAuthRequest(context: AppContext, upstream: string): Promise
 
 	// 1. 探测上游真实的认证配置 (Realm & Service)
 	// 因为我们拦截了 Realm，现在需要临时去问一下上游："原本你应该去哪认证？"
-	const upstreamAuth = await probeUpstreamAuth(upstream);
+	const upstreamAuth = await probeUpstreamAuth(context, upstream);
 
 	if (!upstreamAuth || !upstreamAuth.realm) {
 		// 如果探测失败，或者上游根本没返回 realm，说明配置有误或上游不支持 Auth
@@ -102,7 +101,7 @@ async function handleAuthRequest(context: AppContext, upstream: string): Promise
 	// 客户端发来的 Authorization: Basic <user:pass> 包含在 headers 中，自动透传
 	const authReq = new Request(targetAuthUrl.toString(), {
 		method: request.method,
-		headers: request.headers,
+		headers: cloneHeaders(request.headers!, ['Host', 'Referer']),
 		redirect: 'follow'
 	});
 
@@ -124,11 +123,12 @@ async function handleAuthRequest(context: AppContext, upstream: string): Promise
  * 探测上游的 Auth Realm 和 Service
  * 发起一个匿名请求，触发 401，读取头信息
  */
-async function probeUpstreamAuth(upstream: string): Promise<Record<string, string> | null> {
+async function probeUpstreamAuth(context: AppContext, upstream: string): Promise<Record<string, string> | null> {
 	try {
 		const res = await fetch(`${upstream}/v2/`, {
 			method: 'GET',
-			redirect: 'manual'
+			headers: cloneHeaders(context.request.headers!, ['Host', 'Referer', 'Authorization']),
+			redirect: 'follow'
 		});
 
 		if (res.status === 401) {
