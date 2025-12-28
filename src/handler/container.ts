@@ -61,8 +61,14 @@ async function handleRegistryRequest(context: AppContext, upstream: string): Pro
 		if (location) {
 			const redirectRequest = new Request(location, {
 				method: 'GET',
-				redirect: 'follow'
+				redirect: 'follow',
+				headers: cloneHeaders(null, {
+					set: {
+						[HeaderNames.UserAgent]: request.headers.get(HeaderNames.UserAgent)
+					}
+				})
 			});
+
 			return fetch(redirectRequest);
 		}
 	// 未认证处理

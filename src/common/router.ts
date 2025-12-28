@@ -58,8 +58,9 @@ export function parseRoute(request: Request, routes: RouteMap): ParsedRoute {
 	// 逻辑: 仅提取第一个 '/' 和第二个 '/' 之间的内容作为 key
 	// ---------------------------------------------------------
 	const pathname = url.pathname;
+
 	// Docker 特殊路径匹配
-	if (pathname.startsWith('/v2/') && (accept.includes('vnd.docker.distribution') || accept.includes('vnd.oci.image'))) {
+	if (pathname.startsWith('/v2') && isDockerRequest(request)) {
 		// 路径结构: /v2/ALIAS/rest...
 		const secondSlash = pathname.indexOf('/', 1);
 		if (secondSlash !== -1) {
@@ -118,4 +119,32 @@ export function parseRoute(request: Request, routes: RouteMap): ParsedRoute {
 		realPath: url.pathname,
 		matchType: RouteMatchType.NONE
 	};
+}
+
+// 判断是否Docker请求，仅Path模式下使用
+function isDockerRequest(request: Request): boolean {
+	const headers = request.headers;
+	const ua = headers.get('User-Agent')?.toLowerCase() || '';
+	const accept = headers.get('Accept')?.toLowerCase() || '';
+	// 1. 协议特征检测 (最准确)
+	if (accept.includes('vnd.docker') || accept.includes('vnd.oci')) {
+		return true;
+	}
+	// 2. 客户端特征检测
+	// 用于覆盖 docker login / 握手 等不带特殊 Accept 的场景
+	const knownClients = [
+		'docker/',      // Docker CLI
+		'containerd/',  // Kubernetes / Containerd
+		'kaniko/',      // CI/CD 构建工具
+		'podman/',      // RedHat Podman
+		'crio/',
+		'cri-o/',       // K8s Runtime
+		'buildkit/',    // Docker Buildx
+		'skopeo/'       // 镜像搬运工具
+	];
+
+	if (knownClients.some(client => ua.includes(client))) {
+		return true;
+	}
+	return false;
 }
