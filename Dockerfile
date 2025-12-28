@@ -18,7 +18,7 @@ COPY src ./src
 # --outdir dist: 将编译产物输出到 dist 目录
 RUN npx wrangler deploy --dry-run --outdir dist
 
-RUN npm install -g @cloudflare/workerd-linux-64
+RUN npm install -g workerd
 
 # ==========================================
 # Stage 2: 运行阶段 (Workerd)
@@ -35,7 +35,7 @@ ENTRYPOINT ["/tini", "--"]
 WORKDIR /app
 
 # 从构建阶段复制编译好的 JS 文件
-COPY --from=builder /usr/local/lib/node_modules/@cloudflare/workerd-linux-64/bin/workerd /usr/local/bin/
+COPY --from=builder /usr/local/lib/node_modules/workerd/bin/workerd /usr/local/bin/
 COPY --from=builder /app/dist/index.js ./dist/index.js
 
 # 复制 Workerd 配置文件
