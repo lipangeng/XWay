@@ -16,6 +16,7 @@ export enum RouteMatchType {
 	FULL_DOMAIN = 'full-domain',
 	SUB_DOMAIN = 'sub-domain',
 	PATH = 'path',
+	CONTAINER_PATH = 'container-path',
 	NONE = 'none'
 }
 

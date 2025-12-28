@@ -1,5 +1,5 @@
 import { ParsedRoute, RouteMap } from '../types/router';
-import { RouteMatchType } from '../constants';
+import { RouteMatchType, ServiceType } from '../constants';
 
 /**
  * 路由引擎
@@ -10,6 +10,7 @@ export function parseRoute(request: Request, routes: RouteMap): ParsedRoute {
 	// ---------------------------------------------------------
 	const url = new URL(request.url);
 	const hostname = url.hostname; // e.g., "api.v1.xway.site"
+	const accept = request.headers.get('Accept')?.toLowerCase() || '';
 
 	if (routes[hostname]) {
 		return {
@@ -57,18 +58,38 @@ export function parseRoute(request: Request, routes: RouteMap): ParsedRoute {
 	// 逻辑: 仅提取第一个 '/' 和第二个 '/' 之间的内容作为 key
 	// ---------------------------------------------------------
 	const pathname = url.pathname;
-	if (pathname.length > 1) { // 排除根路径 "/"
-		// 寻找第二个斜杠的位置: /gh/user/repo -> index of '/' after 0 is 3
-		let secondSlashIndex = pathname.indexOf('/', 1);
+	const pathParts = pathname.split('/');
+	// Docker 特殊路径匹配
+	if (pathname.startsWith('/v2/') && (accept.includes('vnd.docker.distribution') || accept.includes('vnd.oci.image'))) {
+		// 路径结构: /v2/ALIAS/rest...
+		// parts: ['', 'v2', 'docker', 'library', ...]
+		// parts[2] 就是潜在的 alias (例如 "docker")
+		if (pathParts.length >= 3) {
+			const potentialAlias = pathParts[2];
+			const config = routes[potentialAlias];
 
-		let pathPrefix: string;
-		if (secondSlashIndex === -1) {
-			// 只有一段路径: /gh
-			pathPrefix = pathname.substring(1);
-		} else {
-			// 多段路径: /gh/user/repo
-			pathPrefix = pathname.substring(1, secondSlashIndex);
+			// 只有当该路由确实存在，且类型为 DOCKER 时才触发此逻辑
+			// 防止误伤正常的 /v2/ 路径
+			if (config && config.type === ServiceType.CONTAINER) {
+
+				return {
+					alias: potentialAlias,
+					config: config,
+					// 重组路径：移除 /ALIAS
+					// 原: /v2/docker/library/nginx/...
+					// 新: /v2/library/nginx/...
+					// 方法: 也就是把 parts[2] 删掉，重新 join
+					realPath: [...pathParts].splice(2, 1).join('/'),
+					matchType: RouteMatchType.CONTAINER_PATH
+				};
+			}
 		}
+	}
+
+	// 常规配置匹配
+	if (pathname.length > 1 && pathParts.length > 1) { // 排除根路径 "/"
+		// 寻找第二个斜杠的位置: /gh/user/repo -> index of '/' after 0 is 3
+		let pathPrefix = pathParts[1];
 
 		if (routes[pathPrefix]) {
 			return {
@@ -77,7 +98,7 @@ export function parseRoute(request: Request, routes: RouteMap): ParsedRoute {
 				// 截取真实路径:
 				// /gh -> /
 				// /gh/user -> /user
-				realPath: secondSlashIndex === -1 ? '/' : pathname.substring(secondSlashIndex),
+				realPath: [...pathParts].splice(1, 1).join('/'),
 				matchType: RouteMatchType.PATH
 			};
 		}
