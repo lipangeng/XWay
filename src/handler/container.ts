@@ -32,7 +32,7 @@ async function handleRegistryRequest(context: AppContext, upstream: string): Pro
 	const config = route.config!;
 
 	// 1. 构造目标 URL
-	const targetUrlStr = upstream + route.realPath + (new URL(request.url).search);
+	const targetUrlStr = upstream.replace(/\/+$/, '') + route.realPath + (new URL(request.url).search);
 
 	// 2. 准备请求头
 	const newHeaders = new Headers(request.headers);
