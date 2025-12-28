@@ -26,12 +26,6 @@ RUN npm install -g workerd
 # 使用包含 glibc 的轻量级镜像，workerd 依赖 libc
 FROM debian:trixie-slim
 
-# 安装Tini
-ENV TINI_VERSION=v0.19.0
-ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
-RUN chmod +x /tini
-ENTRYPOINT ["/tini", "--"]
-
 # 配置证书
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -54,6 +48,8 @@ COPY config.capnp ./config.capnp
 
 # 暴露端口 (需与 config.capnp 中的 address 对应)
 EXPOSE 8080
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
 
 # 启动 Workerd
 CMD ["workerd", "serve", "config.capnp", "--verbose"]
