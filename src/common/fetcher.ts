@@ -1,53 +1,80 @@
+import { RouteConfig } from '../types/router';
+
 export const HeaderNames = {
-	// 标准请求头
-	Authorization: 'Authorization',
-	WwwAuthenticate: 'Www-Authenticate',
-	Host: 'Host',
-	Referer: 'Referer',
-	UserAgent: 'User-Agent',
-	Accept: 'Accept',
-	Location: 'Location'
+  // 标准请求头
+  Authorization: 'Authorization',
+  WwwAuthenticate: 'Www-Authenticate',
+  Host: 'Host',
+  Referer: 'Referer',
+  UserAgent: 'User-Agent',
+  Accept: 'Accept',
+  Location: 'Location'
 };
 
 export interface CloneHeaderOptions {
-	/**
-	 * 需要移除的 Header 键列表
-	 * 例如: ['Host', 'Authorization']
-	 */
-	remove?: string[];
+  /**
+   * 需要移除的 Header 键列表
+   * 例如: ['Host', 'Authorization']
+   */
+  remove?: string[];
 
-	/**
-	 * 需要设置或覆盖的 Header 键值对
-	 * 例如: { 'Referer': 'https://...', 'User-Agent': '...' }
-	 */
-	set?: Record<string, string | null>;
+  /**
+   * 需要设置或覆盖的 Header 键值对
+   * 例如: { 'Referer': 'https://...', 'User-Agent': '...' }
+   */
+  set?: Record<string, string | null>;
 }
 
+// 克隆Headers，同时进行一些操作
 export function cloneHeaders(headers: Headers | null, options: CloneHeaderOptions): Headers {
-	let copyHeaders = new Headers(headers || []);
-	if (options?.remove) {
-		options.remove.forEach(k => copyHeaders.delete(k));
-	}
-	if (options?.set) {
-		Object.entries(options.set).forEach(([key, value]) => {
-			if (value) copyHeaders.set(key, value);
-		});
-	}
-	return copyHeaders;
+  let copyHeaders = new Headers(headers || []);
+  if (options?.remove) {
+    options.remove.forEach(k => copyHeaders.delete(k));
+  }
+  if (options?.set) {
+    Object.entries(options.set).forEach(([key, value]) => {
+      if (value) copyHeaders.set(key, value);
+    });
+  }
+  return copyHeaders;
 }
+
+// 应用Headers规则
+export function applyHeaderRules(config: RouteConfig, headers: Headers): Headers {
+  if (config?.rules?.removeHeaders) {
+    Object.entries(config.rules.removeHeaders).forEach(([k, v]) => headers.delete(k));
+  }
+  // 应用配置中的请求头覆盖 (私有库支持)
+  if (config.rules?.setHeaders) {
+    Object.entries(config.rules.setHeaders).forEach(([k, v]) => headers.set(k, v));
+  }
+  return headers;
+}
+
+// 应用Rewrite规则
+export function applyRewriteRules(config: RouteConfig, path: string): string {
+  let targetPath = path;
+  if (config?.rules?.rewrite) {
+    for (const [pattern, replacement] of Object.entries(config.rules.rewrite)) {
+      targetPath = targetPath.replace(new RegExp(pattern), replacement);
+    }
+  }
+  return targetPath;
+}
+
 
 interface CacheEntry {
-	content: string;       // 文件内容 (文本)
-	etag: string | null;   // 源站 ETag
-	lastModified: string | null;
-	updatedAt: number;     // 本地更新时间戳
+  content: string;       // 文件内容 (文本)
+  etag: string | null;   // 源站 ETag
+  lastModified: string | null;
+  updatedAt: number;     // 本地更新时间戳
 }
 
 export interface FetchResult {
-	content: string;       // 文件内容
-	isNew: boolean;        // true=新下载的; false=使用了缓存
-	error?: string;        // 如果发生错误
-	updatedAt: number;     // 本地更新时间戳
+  content: string;       // 文件内容
+  isNew: boolean;        // true=新下载的; false=使用了缓存
+  error?: string;        // 如果发生错误
+  updatedAt: number;     // 本地更新时间戳
 }
 
 const FILE_CACHE = new Map<string, CacheEntry>();
@@ -58,96 +85,96 @@ const PENDING_REQUESTS = new Map<string, Promise<FetchResult>>();
  * 特性：请求合并 + 严格指纹校验 + 无指纹不缓存
  */
 export async function fetchTextWithCache(
-	url: string,
-	forceRefresh = false
+  url: string,
+  forceRefresh = false
 ): Promise<FetchResult> {
 
-	// 请求合并锁
-	if (PENDING_REQUESTS.has(url)) {
-		return PENDING_REQUESTS.get(url)!;
-	}
+  // 请求合并锁
+  if (PENDING_REQUESTS.has(url)) {
+    return PENDING_REQUESTS.get(url)!;
+  }
 
-	const task = _executeFetch(url, forceRefresh);
-	PENDING_REQUESTS.set(url, task);
+  const task = _executeFetch(url, forceRefresh);
+  PENDING_REQUESTS.set(url, task);
 
-	try {
-		return await task;
-	} finally {
-		PENDING_REQUESTS.delete(url);
-	}
+  try {
+    return await task;
+  } finally {
+    PENDING_REQUESTS.delete(url);
+  }
 }
 
 /* 实际获取逻辑 */
 async function _executeFetch(url: string, forceRefresh: boolean): Promise<FetchResult> {
-	const cached = FILE_CACHE.get(url);
+  const cached = FILE_CACHE.get(url);
 
-	// === 分支 1: 尝试利用缓存 (HEAD 预检) ===
-	if (cached && !forceRefresh) {
-		try {
-			const headRes = await fetch(url, {
-				method: 'HEAD',
-				headers: { 'User-Agent': 'XWay-Fetcher' },
-				cf: { cacheTtl: 0 } // 强制回源
-			});
+  // === 分支 1: 尝试利用缓存 (HEAD 预检) ===
+  if (cached && !forceRefresh) {
+    try {
+      const headRes = await fetch(url, {
+        method: 'HEAD',
+        headers: { 'User-Agent': 'XWay-Fetcher' },
+        cf: { cacheTtl: 0 } // 强制回源
+      });
 
-			if (headRes.ok) {
-				const newEtag = headRes.headers.get('ETag');
-				const newMod = headRes.headers.get('Last-Modified');
+      if (headRes.ok) {
+        const newEtag = headRes.headers.get('ETag');
+        const newMod = headRes.headers.get('Last-Modified');
 
-				// 执行严格对比
-				if (compareFingerprintStrict(cached, newEtag, newMod)) {
-					// 校验通过：确实没变
-					// console.log(`[SmartFetch] Cache HIT: ${url}`);
-					return { content: cached.content, isNew: false, updatedAt: cached.updatedAt };
-				}
-			}
-		} catch (e) {
-			// 网络波动导致 HEAD 失败，降级使用旧缓存
-			console.warn(`[SmartFetch] HEAD check failed: ${url}`);
-			return { content: cached.content, isNew: false, updatedAt: cached.updatedAt };
-		}
-	}
+        // 执行严格对比
+        if (compareFingerprintStrict(cached, newEtag, newMod)) {
+          // 校验通过：确实没变
+          // console.log(`[SmartFetch] Cache HIT: ${url}`);
+          return { content: cached.content, isNew: false, updatedAt: cached.updatedAt };
+        }
+      }
+    } catch (e) {
+      // 网络波动导致 HEAD 失败，降级使用旧缓存
+      console.warn(`[SmartFetch] HEAD check failed: ${url}`);
+      return { content: cached.content, isNew: false, updatedAt: cached.updatedAt };
+    }
+  }
 
-	// === 分支 2: 全量下载 ===
-	try {
-		const res = await fetch(url, {
-			headers: { 'User-Agent': 'XWay-Fetcher' },
-			cf: { cacheTtl: 0 }
-		});
+  // === 分支 2: 全量下载 ===
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'XWay-Fetcher' },
+      cf: { cacheTtl: 0 }
+    });
 
-		if (!res.ok) {
-			throw new Error(`Fetch failed: ${res.status}`);
-		}
+    if (!res.ok) {
+      throw new Error(`Fetch failed: ${res.status}`);
+    }
 
-		const text = await res.text();
-		const etag = res.headers.get('ETag');
-		const lastModified = res.headers.get('Last-Modified');
+    const text = await res.text();
+    const etag = res.headers.get('ETag');
+    const lastModified = res.headers.get('Last-Modified');
 
-		// [规则] 无指纹不缓存
-		// 如果源站不支持协商缓存，我们在内存里存了也没用，下次还得下载，不如不存节省内存
-		if (!etag && !lastModified) {
-			return { content: text, isNew: true, updatedAt: Date.now() };
-		}
+    // [规则] 无指纹不缓存
+    // 如果源站不支持协商缓存，我们在内存里存了也没用，下次还得下载，不如不存节省内存
+    if (!etag && !lastModified) {
+      return { content: text, isNew: true, updatedAt: Date.now() };
+    }
 
-		// 更新缓存
-		let cached: CacheEntry = {
-			content: text,
-			etag,
-			lastModified,
-			updatedAt: Date.now()
-		};
-		FILE_CACHE.set(url, cached);
+    // 更新缓存
+    let cached: CacheEntry = {
+      content: text,
+      etag,
+      lastModified,
+      updatedAt: Date.now()
+    };
+    FILE_CACHE.set(url, cached);
 
-		return { content: cached.content, isNew: true, updatedAt: cached.updatedAt };
+    return { content: cached.content, isNew: true, updatedAt: cached.updatedAt };
 
-	} catch (e: any) {
-		console.error(`[Fetcher] Error: ${e.message}`);
-		// 最后防线
-		if (cached) {
-			return { content: cached.content, isNew: false, error: e.message, updatedAt: Date.now() };
-		}
-		throw e;
-	}
+  } catch (e: any) {
+    console.error(`[Fetcher] Error: ${e.message}`);
+    // 最后防线
+    if (cached) {
+      return { content: cached.content, isNew: false, error: e.message, updatedAt: Date.now() };
+    }
+    throw e;
+  }
 }
 
 /**
@@ -160,37 +187,37 @@ async function _executeFetch(url: string, forceRefresh: boolean): Promise<FetchR
  * 返回 true 表示"没变"，false 表示"变了"
  */
 function compareFingerprintStrict(
-	cached: CacheEntry,
-	newEtag: string | null,
-	newModified: string | null
+  cached: CacheEntry,
+  newEtag: string | null,
+  newModified: string | null
 ): boolean {
-	let hasChecked = false;
+  let hasChecked = false;
 
-	// 1. 校验 ETag
-	if (newEtag) {
-		// 如果源站有 ETag，但缓存没有，或者不一致 -> 变了
-		if (!cached.etag || cached.etag !== newEtag) {
-			return false;
-		}
-		hasChecked = true;
-	}
+  // 1. 校验 ETag
+  if (newEtag) {
+    // 如果源站有 ETag，但缓存没有，或者不一致 -> 变了
+    if (!cached.etag || cached.etag !== newEtag) {
+      return false;
+    }
+    hasChecked = true;
+  }
 
-	// 2. 校验 Last-Modified
-	if (newModified) {
-		// 如果源站有 LM，但缓存没有，或者不一致 -> 变了
-		if (!cached.lastModified || cached.lastModified !== newModified) {
-			return false;
-		}
-		hasChecked = true;
-	}
+  // 2. 校验 Last-Modified
+  if (newModified) {
+    // 如果源站有 LM，但缓存没有，或者不一致 -> 变了
+    if (!cached.lastModified || cached.lastModified !== newModified) {
+      return false;
+    }
+    hasChecked = true;
+  }
 
-	// 3. 兜底防御
-	// 如果 newEtag 和 newMod 都为空（源站这次啥也没发），我们无法确认文件状态
-	// 为了安全，视为"变了"（重新下载 body 确认）
-	if (!hasChecked) {
-		return false;
-	}
+  // 3. 兜底防御
+  // 如果 newEtag 和 newMod 都为空（源站这次啥也没发），我们无法确认文件状态
+  // 为了安全，视为"变了"（重新下载 body 确认）
+  if (!hasChecked) {
+    return false;
+  }
 
-	// 所有存在的检查项都通过了
-	return true;
+  // 所有存在的检查项都通过了
+  return true;
 }
