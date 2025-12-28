@@ -1,7 +1,7 @@
 import { Handler } from '../types';
 import { AppContext } from '../app';
 import { RouteMatchType } from '../constants';
-import { cloneHeaders } from '../common/fetcher';
+import { cloneHeaders, HeaderNames } from '../common/fetcher';
 
 /**
  * 容器镜像仓库专用 Handler
@@ -36,7 +36,7 @@ async function handleRegistryRequest(context: AppContext, upstream: string): Pro
 	const targetUrlStr = upstream.replace(/\/+$/, '') + route.realPath + (new URL(request.url).search);
 
 	// 2. 准备请求头
-	const newHeaders = cloneHeaders(request.headers!, ['Host', 'Referer']);
+	const newHeaders = cloneHeaders(request.headers!, { remove: [HeaderNames.Host, HeaderNames.Referer] });
 
 	// 应用配置中的 Auth 覆盖 (私有库支持)
 	if (config.rules?.setHeaders) {
@@ -49,26 +49,41 @@ async function handleRegistryRequest(context: AppContext, upstream: string): Pro
 		method: request.method,
 		headers: newHeaders,
 		body: request.body,
-		redirect: 'follow'
+		redirect: 'manual'
 	});
 
 	const response = await fetch(newReq);
-	const respHeaders = new Headers(response.headers);
 
-	// 4. 处理响应头
-	// [核心逻辑] 拦截 401，重写 Realm
-	// 告诉客户端：认证请找我 (XWay)，不要直接找上游
-	if (response.status === 401) {
-		const authHeader = respHeaders.get('Www-Authenticate');
-		if (authHeader) {
-			respHeaders.set('Www-Authenticate', rewriteWwwAuthenticate(authHeader, context));
+	// 处理不同情况下的响应
+	// 兼容S3等下载模式
+	if (response.status >= 300 && response.status < 400) {
+		const location = response.headers.get(HeaderNames.Location);
+		if (location) {
+			const redirectRequest = new Request(location, {
+				method: 'GET',
+				redirect: 'flow',
+				headers: cloneHeaders(null, {
+					set: {
+						[HeaderNames.UserAgent]: request.headers.get(HeaderNames.UserAgent)
+					}
+				})
+			});
+			return fetch(redirectRequest);
 		}
+	// 未认证处理
+	} else if (response.status === 401 && response.headers.get(HeaderNames.WwwAuthenticate)) {
+		return new Response(response.body, {
+			status: response.status,
+			statusText: response.statusText,
+			headers: cloneHeaders(response.headers, { set: { [HeaderNames.WwwAuthenticate]: rewriteWwwAuthenticate(response.headers.get(HeaderNames.WwwAuthenticate) || '', context) } })
+		});
 	}
 
+	// 正常下载
 	return new Response(response.body, {
 		status: response.status,
 		statusText: response.statusText,
-		headers: respHeaders
+		headers: response.headers
 	});
 }
 
@@ -101,7 +116,7 @@ async function handleAuthRequest(context: AppContext, upstream: string): Promise
 	// 客户端发来的 Authorization: Basic <user:pass> 包含在 headers 中，自动透传
 	const authReq = new Request(targetAuthUrl.toString(), {
 		method: request.method,
-		headers: cloneHeaders(request.headers!, ['Host', 'Referer']),
+		headers: cloneHeaders(request.headers!, { remove: [HeaderNames.Host, HeaderNames.Referer] }),
 		redirect: 'follow'
 	});
 
@@ -127,7 +142,7 @@ async function probeUpstreamAuth(context: AppContext, upstream: string): Promise
 	try {
 		const res = await fetch(`${upstream}/v2/`, {
 			method: 'GET',
-			headers: cloneHeaders(context.request.headers!, ['Host', 'Referer', 'Authorization']),
+			headers: cloneHeaders(context.request.headers!, { remove: [HeaderNames.Host, HeaderNames.Referer, HeaderNames.Authorization] }),
 			redirect: 'follow'
 		});
 

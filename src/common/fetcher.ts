@@ -1,6 +1,38 @@
-export function cloneHeaders(headers: Headers, keysToRemove: string[] = []) {
-	let copyHeaders = new Headers(headers);
-	keysToRemove.forEach(k => copyHeaders.delete(k));
+export const HeaderNames = {
+	// 标准请求头
+	Authorization: 'Authorization',
+	WwwAuthenticate: 'Www-Authenticate',
+	Host: 'Host',
+	Referer: 'Referer',
+	UserAgent: 'User-Agent',
+	Accept: 'Accept',
+	Location: 'Location'
+};
+
+export interface CloneHeaderOptions {
+	/**
+	 * 需要移除的 Header 键列表
+	 * 例如: ['Host', 'Authorization']
+	 */
+	remove?: string[];
+
+	/**
+	 * 需要设置或覆盖的 Header 键值对
+	 * 例如: { 'Referer': 'https://...', 'User-Agent': '...' }
+	 */
+	set?: Record<string, string | null>;
+}
+
+export function cloneHeaders(headers: Headers | null, options: CloneHeaderOptions): Headers {
+	let copyHeaders = new Headers(headers || []);
+	if (options?.remove) {
+		options.remove.forEach(k => copyHeaders.delete(k));
+	}
+	if (options?.set) {
+		Object.entries(options.set).forEach(([key, value]) => {
+			if (value) copyHeaders.set(key, value);
+		});
+	}
 	return copyHeaders;
 }
 
