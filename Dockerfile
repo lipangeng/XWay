@@ -32,6 +32,14 @@ ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
 RUN chmod +x /tini
 ENTRYPOINT ["/tini", "--"]
 
+# 配置证书
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    ca-certificates \
+    tini \
+    && update-ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # 从构建阶段复制编译好的 JS 文件
