@@ -61,12 +61,7 @@ async function handleRegistryRequest(context: AppContext, upstream: string): Pro
 		if (location) {
 			const redirectRequest = new Request(location, {
 				method: 'GET',
-				redirect: 'follow',
-				headers: cloneHeaders(null, {
-					set: {
-						[HeaderNames.UserAgent]: request.headers.get(HeaderNames.UserAgent)
-					}
-				})
+				redirect: 'follow'
 			});
 			return fetch(redirectRequest);
 		}
