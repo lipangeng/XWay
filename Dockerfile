@@ -1,11 +1,9 @@
 # ==========================================
 # Stage 1: 构建阶段 (编译 TS -> JS)
 # ==========================================
-FROM docker.mirror.ilemon.cloud/library/node:24-slim AS builder
+FROM node:24-slim AS builder
 
 WORKDIR /app
-
-RUN npm config set registry https://registry.npmmirror.com
 
 # 安装构建依赖
 COPY package.json package-lock.json ./
@@ -26,7 +24,7 @@ RUN npm install -g @cloudflare/workerd-linux-64
 # Stage 2: 运行阶段 (Workerd)
 # ==========================================
 # 使用包含 glibc 的轻量级镜像，workerd 依赖 libc
-FROM docker.mirror.ilemon.cloud/library/debian:trixie-slim
+FROM debian:trixie-slim
 
 # 安装Tini
 ENV TINI_VERSION=v0.19.0
