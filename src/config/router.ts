@@ -3,75 +3,86 @@ import { RouteMap } from '../types/router';
 
 // 容器路由配置
 const containerRoute: RouteMap = {
-  'docker': {
+  'docker.cr': {
     upstream: 'https://registry-1.docker.io',
     type: ServiceType.CONTAINER
   },
-  'quay': {
+  'quay.cr': {
     upstream: 'https://quay.io',
     type: ServiceType.CONTAINER
   },
-  'gcr': {
+  'gcr.cr': {
     upstream: 'https://gcr.io',
     type: ServiceType.CONTAINER
   },
-  'ghcr': {
+  'ghcr.cr': {
     upstream: 'https://ghcr.io',
     type: ServiceType.CONTAINER
   },
-  'k8s': {
+  'k8s.cr': {
     upstream: 'https://registry.k8s.io',
     type: ServiceType.CONTAINER
   },
-  'mcr': {
+  'mcr.cr': {
     upstream: 'https://mcr.microsoft.com',
     type: ServiceType.CONTAINER
   },
-  'ecr': {
+  'ecr.cr': {
     upstream: 'https://public.ecr.aws',
     type: ServiceType.CONTAINER
   },
-  'gitlab': {
+  'gitlab.cr': {
     upstream: 'https://registry.gitlab.com',
     type: ServiceType.CONTAINER
   },
-  'redhat': {
+  'redhat.cr': {
     upstream: 'https://registry.redhat.io',
     type: ServiceType.CONTAINER
   },
-  'oracle': {
+  'oracle.cr': {
     upstream: 'https://container-registry.oracle.com',
     type: ServiceType.CONTAINER
   },
-  'cloudsmith': {
+  'cloudsmith.cr': {
     upstream: 'https://docker.cloudsmith.io',
     type: ServiceType.CONTAINER
   },
-  'digitalocean': {
+  'digitalocean.cr': {
     upstream: 'https://registry.digitalocean.com',
     type: ServiceType.CONTAINER
   },
-  'vmware': {
+  'vmware.cr': {
     upstream: 'https://projects.registry.vmware.com',
     type: ServiceType.CONTAINER
   },
-  'heroku': {
+  'heroku.cr': {
     upstream: 'https://registry.heroku.com',
     type: ServiceType.CONTAINER
   },
-  'suse': {
+  'suse.cr': {
     upstream: 'https://registry.suse.com',
     type: ServiceType.CONTAINER
   },
-  'opensuse': {
+  'opensuse.cr': {
     upstream: 'https://registry.opensuse.org',
     type: ServiceType.CONTAINER
   },
-  'gitpod': {
+  'gitpod.cr': {
     upstream: 'https://registry.gitpod.io',
     type: ServiceType.CONTAINER
   }
 };
+
+// 主要映射配置,用来简化访问路径
+const primeContainerMap: RouteMap = {
+  'docker': containerRoute['docker.cr'],
+  'quay': containerRoute['quay.cr'],
+  'gcr': containerRoute['gcr.cr'],
+  'ghcr': containerRoute['ghcr.cr'],
+  'k8s': containerRoute['k8s.cr'],
+  'mcr': containerRoute['mcr.cr']
+};
+
 
 /**
  * 安全合并多个路由表
@@ -88,6 +99,11 @@ export function safeMerge(...routeMaps: RouteMap[]): RouteMap {
           `[Config Conflict] 发现重复的路由配置项: "${key}"。请检查各分类配置，确保 Key 唯一。`
         );
       }
+      if (!map[key]) {
+        throw new Error(
+          `[Config Conflict] 发现空的路由配置项: "${key}"。请检查各分类配置，确保配置不为空。`
+        );
+      }
       result[key] = map[key];
     }
   }
@@ -95,4 +111,4 @@ export function safeMerge(...routeMaps: RouteMap[]): RouteMap {
   return result;
 }
 
-export const defaultRoutes: RouteMap = safeMerge(containerRoute);
+export const defaultRoutes: RouteMap = safeMerge(containerRoute, primeContainerMap);

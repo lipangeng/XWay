@@ -5,146 +5,224 @@ import { RouteMatchType, ServiceType } from '../constants';
  * 路由引擎
  */
 export function parseRoute(request: Request, routes: RouteMap): ParsedRoute {
-	// ---------------------------------------------------------
-	// 1. 全域名精确查找 (O(1)) - 优先级最高
-	// ---------------------------------------------------------
-	const url = new URL(request.url);
-	const hostname = url.hostname; // e.g., "api.v1.xway.site"
-	const accept = request.headers.get('Accept')?.toLowerCase() || '';
+  // 前置入参校验（防空）
+  if (!request || !routes || typeof routes !== 'object') {
+    return {
+      alias: null,
+      config: null,
+      realPath: '/',
+      matchType: RouteMatchType.NONE
+    };
+  }
 
-	if (routes[hostname]) {
-		return {
-			alias: hostname,
-			config: routes[hostname],
-			realPath: url.pathname,
-			matchType: RouteMatchType.FULL_DOMAIN
-		};
-	}
+  const url = new URL(request.url);
+  const { pathname } = url;
 
-	// ---------------------------------------------------------
-	// 2. 子域名贪婪匹配 (从后往前扫描) - 优先级次之
-	// 逻辑: api.v1.xway.site
-	// 第一次检查: api.v1.xway (截取最后一个点之前)
-	// 第二次检查: api.v1      (HIT! 立即返回，这就是最长前缀)
-	// 第三次检查: api         (不再执行，节省性能)
-	// ---------------------------------------------------------
+  // 1. 全域名及子域名匹配 (域名层级的逻辑最直接，优先处理)
+  const domainMatch = matchDomain(url, request, routes);
+  if (domainMatch) return domainMatch;
 
-	// 从末尾开始查找 '.'
-	let lastDotIndex = hostname.lastIndexOf('.');
+  if (pathname.length <= 1) return { alias: null, config: null, realPath: pathname, matchType: RouteMatchType.NONE };
 
-	// 循环条件：必须至少保留一个点 (避免匹配顶级域名如 "com", "net")
-	// 且 lastDotIndex > 0 避免处理 ".com" 这种异常情况
-	while (lastDotIndex > 0) {
-		// 截取当前前缀: "api.v1.xway.site" -> "api.v1.xway"
-		const currentPrefix = hostname.substring(0, lastDotIndex);
+  const dockerMatch = matchDockerV2Path(url, request, routes);
+  if (dockerMatch) return dockerMatch;
 
-		// O(1) Hash 查找
-		if (routes[currentPrefix]) {
-			return {
-				alias: currentPrefix,
-				config: routes[currentPrefix],
-				realPath: url.pathname, // 子域名模式下，路径保持原样
-				matchType: RouteMatchType.SUB_DOMAIN
-			};
-		}
+  const genericPathMatch = matchGenericPath(url, request, routes);
+  if (genericPathMatch) return genericPathMatch;
 
-		// 指针前移，寻找下一个点
-		// "api.v1.xway" -> "api.v1"
-		lastDotIndex = hostname.lastIndexOf('.', lastDotIndex - 1);
-	}
+  return {
+    alias: null,
+    config: null,
+    realPath: url.pathname,
+    matchType: RouteMatchType.NONE
+  };
+}
 
-	// ---------------------------------------------------------
-	// 3. 路径前缀匹配 (零内存分配优化) - 优先级最低
-	// 逻辑: 仅提取第一个 '/' 和第二个 '/' 之间的内容作为 key
-	// ---------------------------------------------------------
-	const pathname = url.pathname;
+// =============================================================================
+// 域名匹配逻辑 (O(1) 贪婪搜索)
+// =============================================================================
+function matchDomain(url: URL, request: Request, routes: RouteMap): ParsedRoute | null {
+  // 提取hostname
+  const hostname = url.hostname;
+  if (!hostname) return null;
+  // 全域名匹配
+  if (routes[hostname]) {
+    return { alias: hostname, config: routes[hostname], matchType: RouteMatchType.FULL_DOMAIN, realPath: url.pathname };
+  }
 
-	// Docker 特殊路径匹配
-	if (pathname.startsWith('/v2') && isDockerRequest(request)) {
-		// 路径结构: /v2/ALIAS/rest...
-		const secondSlash = pathname.indexOf('/', 1);
-		if (secondSlash !== -1) {
-			const thirdSlash = pathname.indexOf('/', secondSlash + 1);
-			const potentialAlias = thirdSlash === -1 ? pathname.substring(secondSlash + 1) : pathname.substring(secondSlash + 1, thirdSlash);
-			const config = routes[potentialAlias];
-			// 只有当该路由确实存在，且类型为 DOCKER 时才触发此逻辑
-			// 防止误伤正常的 /v2/ 路径
-			if (config && config.type === ServiceType.CONTAINER) {
-				return {
-					alias: potentialAlias,
-					config: config,
-					// 重组路径：移除 /ALIAS
-					// 原: /v2/docker/library/nginx/...
-					// 新: /v2/library/nginx/...
-					// 方法: 也就是把 parts[2] 删掉，重新 join
-					realPath: '/v2' + (thirdSlash === -1 ? '/' : pathname.substring(thirdSlash)),
-					matchType: RouteMatchType.CONTAINER_PATH
-				};
-			}
-		}
-	}
+  // 子域名从长到短匹配 (api.v1.docker.cr.rarely.pro -> docker.cr)
+  let lastDotIndex = hostname.lastIndexOf('.');
+  while (lastDotIndex > 0) {
+    const currentPrefix = hostname.substring(0, lastDotIndex);
+    if (routes[currentPrefix]) {
+      return { alias: currentPrefix, config: routes[currentPrefix], matchType: RouteMatchType.SUB_DOMAIN, realPath: url.pathname };
+    }
+    lastDotIndex = hostname.lastIndexOf('.', lastDotIndex - 1);
+  }
+  return null;
+}
 
-	// 常规配置匹配
-	if (pathname.length > 1) { // 排除根路径 "/"
-		// 路径结构: /v2/ALIAS/rest...
-		const secondSlash = pathname.indexOf('/', 1);
-		let potentialAlias: string;
-		if (secondSlash === -1) {
-			// 只有一段路径: /gh
-			potentialAlias = pathname.substring(1);
-		} else {
-			// 多段路径: /gh/user/repo
-			potentialAlias = pathname.substring(1, secondSlash);
-		}
-		const config = routes[potentialAlias];
-		if (config) {
-			return {
-				alias: potentialAlias,
-				config: config,
-				// 截取真实路径:
-				// /gh -> /
-				// /gh/user -> /user
-				realPath: secondSlash === -1 ? '/' : pathname.substring(secondSlash),
-				matchType: RouteMatchType.PATH
-			};
-		}
-	}
+// =============================================================================
+// Docker /v2/ 特殊路径 匹配处理
+// =============================================================================
+function matchDockerV2Path(url: URL, request: Request, routes: RouteMap): ParsedRoute | null {
+  const pathname = url.pathname;
 
-	// ---------------------------------------------------------
-	// 4. 无匹配
-	// ---------------------------------------------------------
-	return {
-		alias: null,
-		config: null,
-		realPath: url.pathname,
-		matchType: RouteMatchType.NONE
-	};
+  // 前置检查：必须是 /v2/ 开头且符合容器客户端特征
+  if (!pathname.startsWith('/v2/') || !isDockerRequest(request)) return null;
+
+  // 直接匹配 即 /v2/docker.cr/ 模式匹配
+  let directSegmentIndex = pathname.indexOf('/', 4);
+  const directSegment = directSegmentIndex === -1 ? pathname.substring(4) : pathname.substring(4, directSegmentIndex);
+  if (directSegment && routes[directSegment] && routes[directSegment].type === ServiceType.CONTAINER) {
+    return {
+      alias: directSegment,
+      config: routes[directSegment],
+      realPath: '/v2' + (directSegmentIndex === -1 ? '/' : pathname.substring(directSegmentIndex)),
+      matchType: RouteMatchType.CONTAINER_PATH
+    };
+  }
+
+  // 路径反转 docker.cr -> /cr/docker, 进行贪婪匹配，从后向前，最长匹配16个 /
+  let fullSegment = getPathSegments(pathname, 4, 16);
+  const totalSegments = fullSegment.segments.length;
+  let reversedSegments = [...fullSegment.segments].reverse();
+
+  // 贪婪搜索：从最长组合开始 (i 代表匹配的段数)
+  // 我们至少需要匹配 2 层 (因为 1 层已经被上面的直连匹配处理了)
+  for (let i = totalSegments; i >= 2; i--) {
+    // 计算在 reversedSegments 中的起始偏移量
+    // 比如总长 3，匹配 3 层(i=3)，offset = 0 (取全部)
+    // 比如总长 3，匹配 2 层(i=2)，offset = 1 (取后两个: docker, cr)
+    const offset = totalSegments - i;
+
+    // 利用 slice 提取后缀并拼接
+    const routeKey = reversedSegments.slice(offset).join('.');
+
+    const config = routes[routeKey];
+    if (config && config.type === ServiceType.CONTAINER) {
+      // indices 对应的索引是 i-1
+      const matchEndIndex = fullSegment.indices[i - 1];
+
+      return {
+        alias: routeKey,
+        config: config,
+        realPath: '/v2' + (matchEndIndex === -1 ? '/' : pathname.substring(matchEndIndex)),
+        matchType: RouteMatchType.CONTAINER_PATH
+      };
+    }
+  }
+
+  return null;
+}
+
+// =============================================================================
+// 通用路径匹配逻辑
+// =============================================================================
+function matchGenericPath(url: URL, request: Request, routes: RouteMap): ParsedRoute | null {
+  const pathname = url.pathname;
+
+  // 直接匹配 即 /docker.cr/ 模式匹配
+  let directSegmentIndex = pathname.indexOf('/', 1);
+  const directSegment = directSegmentIndex === -1 ? pathname.substring(1) : pathname.substring(1, directSegmentIndex);
+  if (directSegment && routes[directSegment]) {
+    return {
+      alias: directSegment,
+      config: routes[directSegment],
+      realPath: directSegmentIndex === -1 ? '/' : pathname.substring(directSegmentIndex),
+      matchType: RouteMatchType.PATH
+    };
+  }
+
+  // 路径反转 docker.cr -> /cr/docker, 进行贪婪匹配，从后向前，最长匹配16个 /
+  let fullSegment = getPathSegments(pathname, 1, 16);
+  const totalSegments = fullSegment.segments.length;
+  let reversedSegments = [...fullSegment.segments].reverse();
+
+  // 贪婪搜索：从最长组合开始 (i 代表匹配的段数)
+  // 我们至少需要匹配 2 层 (因为 1 层已经被上面的直连匹配处理了)
+  for (let i = totalSegments; i >= 2; i--) {
+    // 计算在 reversedSegments 中的起始偏移量
+    // 比如总长 3，匹配 3 层(i=3)，offset = 0 (取全部)
+    // 比如总长 3，匹配 2 层(i=2)，offset = 1 (取后两个: docker, cr)
+    const offset = totalSegments - i;
+
+    // 利用 slice 提取后缀并拼接
+    const routeKey = reversedSegments.slice(offset).join('.');
+
+    const config = routes[routeKey];
+    if (config) {
+      // indices 对应的索引是 i-1
+      const matchEndIndex = fullSegment.indices[i - 1];
+
+      return {
+        alias: routeKey,
+        config: config,
+        realPath: matchEndIndex === -1 ? '/' : pathname.substring(matchEndIndex),
+        matchType: RouteMatchType.PATH
+      };
+    }
+  }
+  return null;
+}
+
+
+// =============================================================================
+// 工具函数
+// =============================================================================
+// 路径段提取器，使用游标方式提取指定深度的路径段，避免全量split
+function getPathSegments(pathname: string, start: number, depth: number): { segments: string[], indices: number[] } {
+  const segments: string[] = [];
+  const indices: number[] = [];
+
+  let currentPos = start;
+  // 容错：如果 start 刚好是 /，跳过
+  if (pathname[currentPos] === '/') currentPos++;
+
+
+  for (let i = 0; i < depth; i++) {
+    const nextSlash = pathname.indexOf('/', currentPos);
+    if (nextSlash === -1) {
+      // 最后一个段
+      const seg = pathname.substring(currentPos);
+      if (seg) {
+        segments.push(seg);
+        indices.push(-1); // -1 表示字符串末尾
+      }
+      break;
+    }
+    const seg = pathname.substring(currentPos, nextSlash);
+    if (seg && seg !== '/') {
+      segments.push(seg);
+      indices.push(nextSlash);
+    }
+    currentPos = nextSlash + 1;
+  }
+
+  return { segments, indices };
 }
 
 // 判断是否Docker请求，仅Path模式下使用
 function isDockerRequest(request: Request): boolean {
-	const headers = request.headers;
-	const ua = headers.get('User-Agent')?.toLowerCase() || '';
-	const accept = headers.get('Accept')?.toLowerCase() || '';
-	// 1. 协议特征检测 (最准确)
-	if (accept.includes('vnd.docker') || accept.includes('vnd.oci')) {
-		return true;
-	}
-	// 2. 客户端特征检测
-	// 用于覆盖 docker login / 握手 等不带特殊 Accept 的场景
-	const knownClients = [
-		'docker/',      // Docker CLI
-		'containerd/',  // Kubernetes / Containerd
-		'kaniko/',      // CI/CD 构建工具
-		'podman/',      // RedHat Podman
-		'crio/',
-		'cri-o/',       // K8s Runtime
-		'buildkit/',    // Docker Buildx
-		'skopeo/'       // 镜像搬运工具
-	];
+  const headers = request.headers;
+  const ua = headers.get('User-Agent')?.toLowerCase() || '';
+  const accept = headers.get('Accept')?.toLowerCase() || '';
+  // 1. 协议特征检测 (最准确)
+  if (accept.includes('vnd.docker') || accept.includes('vnd.oci')) {
+    return true;
+  }
+  // 2. 客户端特征检测
+  // 用于覆盖 docker login / 握手 等不带特殊 Accept 的场景
+  const knownClients = [
+    'docker/',      // Docker CLI
+    'containerd/',  // Kubernetes / Containerd
+    'kaniko/',      // CI/CD 构建工具
+    'podman/',      // RedHat Podman
+    'crio/',
+    'cri-o/',       // K8s Runtime
+    'buildkit/',    // Docker Buildx
+    'skopeo/'       // 镜像搬运工具
+  ];
 
-	if (knownClients.some(client => ua.includes(client))) {
-		return true;
-	}
-	return false;
+  return knownClients.some(client => ua.includes(client));
 }
