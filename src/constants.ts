@@ -4,11 +4,11 @@
  */
 export enum ServiceType {
   CONTAINER = 'Container', // 容器
-  GITHUB = 'Github',          // GitHub 主站 (处理重定向)
+  // GITHUB = 'Github',          // GitHub 主站 (处理重定向)
   HOME = 'Home', // 首页
   // GENERAL = 'general',        // 通用反代
   // DOCKER = 'docker',          // Docker Registry (预留)
-  // DELEGATE = 'delegate',       // 委托处理，将请求进行转发
+  DELEGATE = 'delegate',       // 委托处理，将请求进行转发
   // UNIVERSAL = 'universal'
 }
 

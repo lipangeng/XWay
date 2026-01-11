@@ -1,5 +1,4 @@
-import { Middleware } from '../types';
-import { AppContext } from '../app';
+import { AppContext, Middleware } from '../types';
 
 export const TraceMiddleware: Middleware = {
   id: 'trace',
@@ -20,3 +19,21 @@ export const TraceMiddleware: Middleware = {
     }
   }
 };
+
+// 监控记录
+export interface Trace {
+  requestId: string;
+  spans: Span[];
+  // 辅助方法：快速创建一个 Span 并记录执行过程
+  record: <T>(name: string, fn: () => Promise<T>, metadata?: Record<string, any>) => Promise<T>;
+}
+
+// 每个监控节点
+export interface Span {
+  name: string;
+  start: number;
+  end?: number;
+  duration?: number;
+  status: 'ok' | 'error';
+  metadata?: Record<string, any>;
+}

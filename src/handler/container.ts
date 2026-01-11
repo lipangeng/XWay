@@ -1,5 +1,4 @@
-import { RequestHandler } from '../types';
-import { AppContext } from '../app';
+import { AppContext, RequestHandler } from '../types';
 import { RouteMatchType, ServiceType } from '../constants';
 import { applyHeaderRules, applyRewriteRules, cloneHeaders, HeaderNames } from '../common/fetcher';
 
@@ -37,21 +36,21 @@ async function handleRegistryRequest(context: AppContext, upstream: string): Pro
   const config = route.config!;
 
   // 1. 构造目标 URL
-  const targetUrlStr = applyRewriteRules(config, upstream.replace(/\/+$/, '') + route.path + (new URL(request.url).search));
+  const proxyUrl = applyRewriteRules(config, upstream.replace(/\/+$/, '') + route.path + (new URL(request.url).search));
 
   // 2. 准备请求头
-  const targetHeaders = applyHeaderRules(config, cloneHeaders(request.headers, { remove: [HeaderNames.Host, HeaderNames.Referer] }));
+  const proxyHeaders = applyHeaderRules(config, cloneHeaders(request.headers, { remove: [HeaderNames.Host, HeaderNames.Referer] }));
 
   // 3. 发起请求
   // redirect: 'follow' -> 自动跟随 Blob 的 S3/CDN 跳转，简化客户端网络需求
-  const newReq = new Request(targetUrlStr, {
+  const proxyRequest = new Request(proxyUrl, {
     method: request.method,
-    headers: targetHeaders,
+    headers: proxyHeaders,
     body: request.body,
     redirect: 'manual'
   });
 
-  const response = await fetch(newReq);
+  const response = await fetch(proxyRequest);
 
   // 处理不同情况下的响应
   // 兼容S3等下载模式

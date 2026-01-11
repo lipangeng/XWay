@@ -1,9 +1,9 @@
 import { ServiceType } from '../constants';
 import { customHandlers } from '../custom/handler';
-import { AppContext } from '../app';
-import { RequestHandler } from '../types';
+import { AppContext, RequestHandler } from '../types';
 import { HomeHandler } from './home';
 import { ContainerHandler } from './container';
+import { DelegateHandler } from './delegate';
 
 // 安全的合并
 function safeMerge(...handlers: RequestHandler[]): Record<ServiceType, RequestHandler> {
@@ -23,12 +23,13 @@ function safeMerge(...handlers: RequestHandler[]): Record<ServiceType, RequestHa
 
 // 初始化
 const coreHandlers: RequestHandler[] = [
-  ContainerHandler
+  ContainerHandler,
+  DelegateHandler
 ];
 
-const REGISTERED_HANDLERS: Record<ServiceType, RequestHandler> = safeMerge(...coreHandlers, ...customHandlers);
+export const REGISTERED_HANDLERS: Record<ServiceType, RequestHandler> = safeMerge(...coreHandlers, ...customHandlers);
 
-export async function doHandler(context: AppContext) {
+export async function handleRequest(context: AppContext) {
   let defaultHandler = HomeHandler;
   if (!context.route.config?.type) {
     console.warn(`handler type "${context.route.config?.type}" is missing.`);

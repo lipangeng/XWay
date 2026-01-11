@@ -1,10 +1,6 @@
 // 路由配置结构
 import { RouteMatchType, RouteMiddlewareMode, ServiceType } from '../constants';
 
-export interface XReqeust {
-
-}
-
 export interface RouteConfig {
   upstream: string;
   type: ServiceType;
@@ -32,10 +28,10 @@ export interface RouteConfig {
 export interface ParsedRoute {
   // [重命名] alias -> key
   // 对应配置文件中的键名 (e.g. "docker", "docker.cr", "gh")
-  key: string | null;
-  path: string | null;
-  upstream: string | null;
-  config: RouteConfig | null;
+  key?: string;
+  path?: string;
+  upstream?: string;
+  config?: RouteConfig;
   matchType: RouteMatchType;
   // 原始路由快照
   // 记录路由引擎刚解析完成时的状态，不受后续中间件修改的影响

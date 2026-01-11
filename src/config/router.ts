@@ -1,8 +1,9 @@
 import { ServiceType } from '../constants';
 import { RouteMap } from '../types/router';
+import { dynamicUpstreamMiddleware } from '../middleware/dynamic-upstream';
 
 // 容器路由配置
-const containerRoute: RouteMap = {
+const containerRouter: RouteMap = {
   'docker.cr': {
     upstream: 'https://registry-1.docker.io',
     type: ServiceType.CONTAINER
@@ -74,13 +75,26 @@ const containerRoute: RouteMap = {
 };
 
 // 主要映射配置,用来简化访问路径
-const primeContainerMap: RouteMap = {
-  'docker': containerRoute['docker.cr'],
-  'quay': containerRoute['quay.cr'],
-  'gcr': containerRoute['gcr.cr'],
-  'ghcr': containerRoute['ghcr.cr'],
-  'k8s': containerRoute['k8s.cr'],
-  'mcr': containerRoute['mcr.cr']
+const primeContainerRouter: RouteMap = {
+  'docker': containerRouter['docker.cr'],
+  'quay': containerRouter['quay.cr'],
+  'gcr': containerRouter['gcr.cr'],
+  'ghcr': containerRouter['ghcr.cr'],
+  'k8s': containerRouter['k8s.cr'],
+  'mcr': containerRouter['mcr.cr']
+};
+
+const gitHubRouter: RouteMap = {
+  'github': {
+    upstream: 'https://github.com',
+    type: ServiceType.DELEGATE,
+    middlewares: [
+      dynamicUpstreamMiddleware.id
+    ],
+    allowUpstreams: [
+      '.githubusercontent.com'
+    ]
+  }
 };
 
 
@@ -111,4 +125,4 @@ export function safeMerge(...routeMaps: RouteMap[]): RouteMap {
   return result;
 }
 
-export const defaultRoutes: RouteMap = safeMerge(containerRoute, primeContainerMap);
+export const defaultRoutes: RouteMap = safeMerge(containerRouter, primeContainerRouter, gitHubRouter);

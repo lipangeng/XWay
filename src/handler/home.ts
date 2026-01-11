@@ -1,6 +1,5 @@
-import { RequestHandler } from '../types';
+import { AppContext, RequestHandler } from '../types';
 import { ServiceType } from '../constants';
-import { AppContext } from '../app';
 
 export const HomeHandler: RequestHandler = {
   type: ServiceType.HOME,

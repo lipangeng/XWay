@@ -1,4 +1,4 @@
-import { ParsedRoute, RouteMap } from '../types/router';
+import { ParsedRoute, RouteConfig, RouteMap } from '../types/router';
 import { RouteMatchType, ServiceType } from '../constants';
 
 /**
@@ -8,9 +8,6 @@ export function parseRoute(request: Request, routes: RouteMap): ParsedRoute {
   // 前置入参校验（防空）
   if (!request || !routes || typeof routes !== 'object') {
     return {
-      key: null,
-      upstream: null,
-      config: null,
       path: '/',
       matchType: RouteMatchType.NONE
     };
@@ -23,7 +20,7 @@ export function parseRoute(request: Request, routes: RouteMap): ParsedRoute {
   const domainMatch = matchDomain(url, request, routes);
   if (domainMatch) return domainMatch;
 
-  if (pathname.length <= 1) return { key: null, upstream: null, config: null, path: pathname, matchType: RouteMatchType.NONE, raw: null };
+  if (pathname.length <= 1) return { path: pathname, matchType: RouteMatchType.NONE };
 
   const dockerMatch = matchDockerV2Path(url, request, routes);
   if (dockerMatch) return dockerMatch;
@@ -32,12 +29,8 @@ export function parseRoute(request: Request, routes: RouteMap): ParsedRoute {
   if (genericPathMatch) return genericPathMatch;
 
   return {
-    key: null,
-    config: null,
     path: url.pathname,
-    upstream: null,
-    matchType: RouteMatchType.NONE,
-    raw: null
+    matchType: RouteMatchType.NONE
   };
 }
 
@@ -238,4 +231,35 @@ function isDockerRequest(request: Request): boolean {
   ];
 
   return knownClients.some(client => ua.includes(client));
+}
+
+// 判断是否允许的上游地址
+export function isUpstreamAllowed(config: RouteConfig, upstream: string) {
+  let { allowUpstreams } = config;
+
+
+  if (!allowUpstreams || allowUpstreams.length === 0) {
+    return false;
+  }
+
+  // 统一转为小写，域名不区分大小写
+  const target = upstream.toLowerCase();
+
+  return allowUpstreams.some(rule => {
+    const cleanRule = rule.toLowerCase();
+
+    // 情况 1: 泛域名规则 (以 . 开头)
+    if (cleanRule.startsWith('.')) {
+      // 提取根域名，例如 .example.com -> example.com
+      const rootDomain = cleanRule.substring(1);
+
+      // 判定逻辑：
+      // 1. 目标完全等于根域名 (example.com)
+      // 2. 目标以规则结尾 (.example.com)，确保了不会匹配到 bad-example.com
+      return target === rootDomain || target.endsWith(cleanRule);
+    }
+
+    // 情况 2: 精确匹配规则
+    return target === cleanRule;
+  });
 }

@@ -1,29 +1,12 @@
 import { loadConfig } from './config/loader';
 import { parseRoute } from './common/router';
 import { ParsedRoute, RouteMap } from './types/router';
-import { Middleware } from './types';
+import { AppConfig, AppContext, Env, Middleware } from './types';
 import { getMiddleware } from './middleware';
 import { RouteMatchType, RouteMiddlewareMode } from './constants';
-import { doHandler } from './handler';
-import { Env } from './types';
+import { handleRequest } from './handler';
 import { HomeHandler } from './handler/home';
-import { TraceMiddleware } from './middleware/trace';
 
-/* 应用配置 */
-export interface AppConfig {
-  router: RouteMap;
-}
-
-/* 应用上下文 */
-export interface AppContext {
-  request: Request;
-  runtime: {
-    env: Env;
-    ctx: ExecutionContext;
-  };
-  route: ParsedRoute;
-  middlewares: Middleware[];
-}
 
 export class XWayApp {
   private defaultMiddlewares: Middleware[] = [];
@@ -93,20 +76,19 @@ export class XWayApp {
       route: route,
       middlewares: middlewares
     };
-    return doDispatch(context, 0);
+    return invokeMiddleware(context, 0);
   }
 }
 
-async function doDispatch(context: AppContext, middlewareIdx: number): Promise<Response> {
-  // 链条结束，进入 Handler
-  if (middlewareIdx === context.middlewares.length) {
-    if (context.route.matchType !== RouteMatchType.NONE) {
-      return await doHandler(context);
+function invokeMiddleware(context: AppContext, index: number): Promise<Response> {
+  // 检查是否到达链条末端
+  if (index >= context.middlewares.length) {
+    // 如果未匹配到任何节点
+    if (context.route.matchType === RouteMatchType.NONE) {
+      return HomeHandler.handle(context);
     }
-    return HomeHandler.handle(context);
+    return handleRequest(context);
   }
-  return context.middlewares[middlewareIdx]?.handle(context, () => doDispatch(context, middlewareIdx + 1));
+  // 链式调用中间件
+  return context.middlewares[index]?.handle(context, () => invokeMiddleware(context, index + 1));
 }
-
-
-
