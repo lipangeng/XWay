@@ -1,13 +1,31 @@
 import { AppContext } from '../app';
+import { ServiceType } from '../constants';
 
 export interface Env {
-	ROUTE_MODE?: string; // 可选: 'auto' | 'domain' | 'path'
-	BASE_DOMAIN?: string; // 本程序的基本域名
+  ROUTE_MODE?: string; // 可选: 'auto' | 'domain' | 'path'
+  BASE_DOMAIN?: string; // 本程序的基本域名
 
-	// 允许读取 REMOTE_CONFIG_URL_XX
-	[key: string]: string | undefined;
+  // 允许读取 REMOTE_CONFIG_URL_XX
+  [key: string]: string | undefined;
 }
 
-export type Middleware = (ctx: AppContext, next: () => Promise<Response>) => Promise<Response>;
+// 中间件配置
+export interface Middleware {
+  // 唯一标识
+  id: string;
+  // (可选) 描述信息
+  description?: string;
+  // (可选) 优先级，数字越小越先执行
+  priority?: number;
+  // 核心执行的函数
+  handle: (ctx: AppContext, next: () => Promise<Response>) => Promise<Response>;
+}
 
-export type Handler = (ctx: AppContext) => Promise<Response>;
+export interface RequestHandler {
+  // 处理器对应的服务类型 (作为唯一标识，e.g. ServiceType.GITHUB)
+  type: ServiceType;
+  // (可选) 描述信息
+  description?: string;
+  // 核心处理逻辑
+  handle: (ctx: AppContext) => Promise<Response>;
+}

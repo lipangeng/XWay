@@ -8,9 +8,10 @@ export function parseRoute(request: Request, routes: RouteMap): ParsedRoute {
   // 前置入参校验（防空）
   if (!request || !routes || typeof routes !== 'object') {
     return {
-      alias: null,
+      key: null,
+      upstream: null,
       config: null,
-      realPath: '/',
+      path: '/',
       matchType: RouteMatchType.NONE
     };
   }
@@ -22,7 +23,7 @@ export function parseRoute(request: Request, routes: RouteMap): ParsedRoute {
   const domainMatch = matchDomain(url, request, routes);
   if (domainMatch) return domainMatch;
 
-  if (pathname.length <= 1) return { alias: null, config: null, realPath: pathname, matchType: RouteMatchType.NONE };
+  if (pathname.length <= 1) return { key: null, upstream: null, config: null, path: pathname, matchType: RouteMatchType.NONE, raw: null };
 
   const dockerMatch = matchDockerV2Path(url, request, routes);
   if (dockerMatch) return dockerMatch;
@@ -31,10 +32,12 @@ export function parseRoute(request: Request, routes: RouteMap): ParsedRoute {
   if (genericPathMatch) return genericPathMatch;
 
   return {
-    alias: null,
+    key: null,
     config: null,
-    realPath: url.pathname,
-    matchType: RouteMatchType.NONE
+    path: url.pathname,
+    upstream: null,
+    matchType: RouteMatchType.NONE,
+    raw: null
   };
 }
 
@@ -47,7 +50,7 @@ function matchDomain(url: URL, request: Request, routes: RouteMap): ParsedRoute 
   if (!hostname) return null;
   // 全域名匹配
   if (routes[hostname]) {
-    return { alias: hostname, config: routes[hostname], matchType: RouteMatchType.FULL_DOMAIN, realPath: url.pathname };
+    return { key: hostname, config: routes[hostname], path: url.pathname, upstream: routes[hostname]?.upstream, matchType: RouteMatchType.FULL_DOMAIN };
   }
 
   // 子域名从长到短匹配 (api.v1.docker.cr.rarely.pro -> docker.cr)
@@ -55,7 +58,13 @@ function matchDomain(url: URL, request: Request, routes: RouteMap): ParsedRoute 
   while (lastDotIndex > 0) {
     const currentPrefix = hostname.substring(0, lastDotIndex);
     if (routes[currentPrefix]) {
-      return { alias: currentPrefix, config: routes[currentPrefix], matchType: RouteMatchType.SUB_DOMAIN, realPath: url.pathname };
+      return {
+        key: currentPrefix,
+        config: routes[currentPrefix],
+        path: url.pathname,
+        upstream: routes[currentPrefix]?.upstream,
+        matchType: RouteMatchType.SUB_DOMAIN
+      };
     }
     lastDotIndex = hostname.lastIndexOf('.', lastDotIndex - 1);
   }
@@ -76,9 +85,10 @@ function matchDockerV2Path(url: URL, request: Request, routes: RouteMap): Parsed
   const directSegment = directSegmentIndex === -1 ? pathname.substring(4) : pathname.substring(4, directSegmentIndex);
   if (directSegment && routes[directSegment] && routes[directSegment].type === ServiceType.CONTAINER) {
     return {
-      alias: directSegment,
+      key: directSegment,
       config: routes[directSegment],
-      realPath: '/v2' + (directSegmentIndex === -1 ? '/' : pathname.substring(directSegmentIndex)),
+      path: '/v2' + (directSegmentIndex === -1 ? '/' : pathname.substring(directSegmentIndex)),
+      upstream: routes[directSegment]?.upstream,
       matchType: RouteMatchType.CONTAINER_PATH
     };
   }
@@ -105,9 +115,10 @@ function matchDockerV2Path(url: URL, request: Request, routes: RouteMap): Parsed
       const matchEndIndex = fullSegment.indices[i - 1];
 
       return {
-        alias: routeKey,
+        key: routeKey,
         config: config,
-        realPath: '/v2' + (matchEndIndex === -1 ? '/' : pathname.substring(matchEndIndex)),
+        path: '/v2' + (matchEndIndex === -1 ? '/' : pathname.substring(matchEndIndex)),
+        upstream: config.upstream,
         matchType: RouteMatchType.CONTAINER_PATH
       };
     }
@@ -127,9 +138,10 @@ function matchGenericPath(url: URL, request: Request, routes: RouteMap): ParsedR
   const directSegment = directSegmentIndex === -1 ? pathname.substring(1) : pathname.substring(1, directSegmentIndex);
   if (directSegment && routes[directSegment]) {
     return {
-      alias: directSegment,
+      key: directSegment,
       config: routes[directSegment],
-      realPath: directSegmentIndex === -1 ? '/' : pathname.substring(directSegmentIndex),
+      path: directSegmentIndex === -1 ? '/' : pathname.substring(directSegmentIndex),
+      upstream: routes[directSegment].upstream,
       matchType: RouteMatchType.PATH
     };
   }
@@ -156,9 +168,10 @@ function matchGenericPath(url: URL, request: Request, routes: RouteMap): ParsedR
       const matchEndIndex = fullSegment.indices[i - 1];
 
       return {
-        alias: routeKey,
+        key: routeKey,
         config: config,
-        realPath: matchEndIndex === -1 ? '/' : pathname.substring(matchEndIndex),
+        path: matchEndIndex === -1 ? '/' : pathname.substring(matchEndIndex),
+        upstream: config.upstream,
         matchType: RouteMatchType.PATH
       };
     }

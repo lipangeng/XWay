@@ -1,1 +1,3 @@
-export const customHandlers: Record<string, any> = {};
+import { RequestHandler } from '../types';
+
+export const customHandlers: RequestHandler[] = [];

@@ -1,27 +1,31 @@
-import { Handler } from '../types';
+import { RequestHandler } from '../types';
 import { AppContext } from '../app';
-import { RouteMatchType } from '../constants';
+import { RouteMatchType, ServiceType } from '../constants';
 import { applyHeaderRules, applyRewriteRules, cloneHeaders, HeaderNames } from '../common/fetcher';
 
 /**
  * 容器镜像仓库专用 Handler
  * 兼容 Docker Registry V2 API
  */
-export const ContainerHandler: Handler = async (context: AppContext) => {
-  const { route } = context;
-  const config = route.config!;
+export const ContainerHandler: RequestHandler = {
+  type: ServiceType.CONTAINER,
+  description: 'Container request handler',
+  handle(context: AppContext) {
+    const { route } = context;
+    const config = route.config!;
 
-  // 直接使用配置的上游地址，不做任何特殊映射
-  const upstream = config.upstream;
+    // 直接使用配置的上游地址，不做任何特殊映射
+    const upstream = config.upstream;
 
-  // 1. 根据路径分发处理逻辑
-  // 如果是认证请求 (/v2/auth)，走专门的认证处理流程
-  if (route.realPath === '/v2/auth' || route.realPath.endsWith('/v2/auth')) {
-    return handleAuthRequest(context, upstream);
+    // 1. 根据路径分发处理逻辑
+    // 如果是认证请求 (/v2/auth)，走专门的认证处理流程
+    if (route.path === '/v2/auth' || route.path?.endsWith('/v2/auth')) {
+      return handleAuthRequest(context, upstream);
+    }
+
+    // 否则走常规镜像请求流程
+    return handleRegistryRequest(context, upstream);
   }
-
-  // 否则走常规镜像请求流程
-  return handleRegistryRequest(context, upstream);
 };
 
 // =============================================================================
@@ -33,7 +37,7 @@ async function handleRegistryRequest(context: AppContext, upstream: string): Pro
   const config = route.config!;
 
   // 1. 构造目标 URL
-  const targetUrlStr = applyRewriteRules(config, upstream.replace(/\/+$/, '') + route.realPath + (new URL(request.url).search));
+  const targetUrlStr = applyRewriteRules(config, upstream.replace(/\/+$/, '') + route.path + (new URL(request.url).search));
 
   // 2. 准备请求头
   const targetHeaders = applyHeaderRules(config, cloneHeaders(request.headers, { remove: [HeaderNames.Host, HeaderNames.Referer] }));
@@ -187,7 +191,7 @@ function rewriteWwwAuthenticate(header: string, context: AppContext): string {
   } else {
     // Path 模式: 需要保留前缀 (如 /docker/v2/auth)
     // route.alias 即为前缀 (e.g., "docker")
-    proxyAuthPath = `/${route.alias}/v2/auth`.replace('//', '/');
+    proxyAuthPath = `/${route.key}/v2/auth`.replace('//', '/');
   }
 
   const proxyRealm = `${currentUrl.origin}${proxyAuthPath}`;

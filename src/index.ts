@@ -12,24 +12,24 @@
  */
 import { XWayApp } from './app';
 import { Env } from './types';
-import { trace } from './middleware/trace';
+import { TraceMiddleware } from './middleware/trace';
 
 // 初始化应用并设置默认中间件
 export const app = new XWayApp();
-app.useMiddlewares([trace]);
+app.useMiddlewares([TraceMiddleware]);
 
 export default {
-	async fetch(request, env: Env, ctx): Promise<Response> {
+  async fetch(request, env: Env, ctx): Promise<Response> {
 
-		// 首次启动时加载配置文件
-		// 由于是冷启动，可能速度会较慢
-		if (!app.getConfig()) {
-			await app.load(env);
-		} else {
-			ctx.waitUntil(app.load(env));
-		}
+    // 首次启动时加载配置文件
+    // 由于是冷启动，可能速度会较慢
+    if (!app.getConfig()) {
+      await app.load(env);
+    } else {
+      ctx.waitUntil(app.load(env));
+    }
 
-		// 启动应用
-		return app.dispatch(request, env, ctx);
-	}
+    // 启动应用
+    return app.dispatch(request, env, ctx);
+  }
 } satisfies ExportedHandler<Env>;

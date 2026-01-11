@@ -1,13 +1,13 @@
 import { Middleware } from '../types';
-import { trace } from './trace';
+import { TraceMiddleware } from './trace';
 import { customMiddlewares } from '../custom/middleware';
 
 const SYSTEM_MIDDLEWARES: Record<string, Middleware> = {
-	'sys:timer': trace
+  [TraceMiddleware.id]: TraceMiddleware
 };
 
 const ALL_MIDDLEWARES = { ...SYSTEM_MIDDLEWARES, ...customMiddlewares };
 
 export function getMiddleware(name: string): Middleware | null {
-	return ALL_MIDDLEWARES[name] || null;
+  return ALL_MIDDLEWARES[name] || null;
 }
