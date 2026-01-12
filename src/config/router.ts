@@ -92,6 +92,7 @@ const gitHubRouter: RouteMap = {
       DynamicUpstreamMiddleware.id
     ],
     allowUpstreams: [
+      '.github.com',
       '.githubusercontent.com'
     ]
   }
