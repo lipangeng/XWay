@@ -1,6 +1,6 @@
 import { ServiceType } from '../constants';
 import { RouteMap } from '../types/router';
-import { dynamicUpstreamMiddleware } from '../middleware/dynamic-upstream';
+import { DynamicUpstreamMiddleware } from '../middleware/dynamic-upstream';
 
 // 容器路由配置
 const containerRouter: RouteMap = {
@@ -89,7 +89,7 @@ const gitHubRouter: RouteMap = {
     upstream: 'https://github.com',
     type: ServiceType.DELEGATE,
     middlewares: [
-      dynamicUpstreamMiddleware.id
+      DynamicUpstreamMiddleware.id
     ],
     allowUpstreams: [
       '.githubusercontent.com'

@@ -1,7 +1,7 @@
 import { AppContext, Middleware, MiddlewareNextFunction } from '../types';
 import { isUpstreamAllowed } from '../common/router';
 
-export const dynamicUpstreamMiddleware: Middleware = {
+export const DynamicUpstreamMiddleware: Middleware = {
   id: 'DynamicUpstream',
   description: 'Resolves dynamic upstream from URL path based on allowUpstreams list',
   async handle(context: AppContext, next: MiddlewareNextFunction): Promise<Response> {
