@@ -12,12 +12,15 @@ export const DynamicUpstreamMiddleware: Middleware = {
     const rawPath = path?.replace(/^\/+/, '');
 
     // 只有配置了 allowUpstreams 的路由才启用此逻辑
-    if (config?.allowUpstreams?.length && (rawPath?.startsWith('http://') || rawPath?.startsWith('https://'))) {
+    if (config && (rawPath?.startsWith('http://') || rawPath?.startsWith('https://'))) {
       const target = new URL(rawPath);
       if (isUpstreamAllowed(config, target.hostname)) {
         // 修改当前生效的路由信息
         route.upstream = target.origin;
         route.path = target.pathname;
+      } else {
+        // 访问白名单之外的地址，进行报错
+        return new Response('not allowed upstream: ' + rawPath, { status: 403 });
       }
     }
     return next();

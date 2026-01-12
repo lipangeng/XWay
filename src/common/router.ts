@@ -237,15 +237,10 @@ function isDockerRequest(request: Request): boolean {
 export function isUpstreamAllowed(config: RouteConfig, upstream: string) {
   let { allowUpstreams } = config;
 
-
-  if (!allowUpstreams || allowUpstreams.length === 0) {
-    return false;
-  }
-
   // 统一转为小写，域名不区分大小写
   const target = upstream.toLowerCase();
 
-  return allowUpstreams.some(rule => {
+  return [new URL(config.upstream).hostname, ...allowUpstreams || []].some(rule => {
     const cleanRule = rule.toLowerCase();
 
     // 情况 1: 泛域名规则 (以 . 开头)
