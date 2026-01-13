@@ -3,6 +3,7 @@ import { isUpstreamAllowed } from '../common/router';
 
 export const DynamicUpstreamMiddleware: Middleware = {
   id: 'DynamicUpstream',
+  priority: Number.MIN_SAFE_INTEGER + 1000, // 尽可能高的优先级进行处理
   description: 'Resolves dynamic upstream from URL path based on allowUpstreams list',
   async handle(context: AppContext, next: MiddlewareNextFunction): Promise<Response> {
     const { route } = context;

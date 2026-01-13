@@ -13,10 +13,11 @@
 import { XWayApp } from './app';
 import { Env } from './types';
 import { TraceMiddleware } from './middleware/trace';
+import { RobotsMiddleware } from './middleware/robots';
 
 // 初始化应用并设置默认中间件
 export const app = new XWayApp();
-app.useMiddlewares([TraceMiddleware]);
+app.useMiddlewares([TraceMiddleware, RobotsMiddleware]);
 
 export default {
   async fetch(request, env: Env, ctx): Promise<Response> {

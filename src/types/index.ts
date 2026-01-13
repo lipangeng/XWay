@@ -47,5 +47,5 @@ export interface AppContext {
   };
   route: ParsedRoute;
   middlewares: Middleware[];
-  params?: Record<string, any>;
+  params: Record<string, any>;
 }

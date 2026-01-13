@@ -6,6 +6,8 @@ import { getMiddleware } from './middleware';
 import { RouteMatchType, RouteMiddlewareMode } from './constants';
 import { handleRequest } from './handler';
 import { HomeHandler } from './handler/home';
+import { TraceMiddleware } from './middleware/trace';
+import { RobotsMiddleware } from './middleware/robots';
 
 
 export class XWayApp {
@@ -65,6 +67,10 @@ export class XWayApp {
     } else {
       middlewares.push(...this.defaultMiddlewares);
     }
+    // 中间件优先级排序，从小到大排序
+    middlewares.sort((a: Middleware, b: Middleware) => {
+      return (a.priority || 0) - (b.priority || 0);
+    });
 
     // 构建上下文
     const context: AppContext = {
@@ -74,7 +80,8 @@ export class XWayApp {
         ctx: ctx
       },
       route: route,
-      middlewares: middlewares
+      middlewares: middlewares,
+      params: []
     };
     return invokeMiddleware(context, 0);
   }
