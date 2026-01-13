@@ -6,7 +6,7 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "xway",
 	"main": "src/index.ts",
-	"compatibility_date": "2025-12-02",
+	"compatibility_date": "2026-01-13",
 	"observability": {
 		"enabled": true
 	}
