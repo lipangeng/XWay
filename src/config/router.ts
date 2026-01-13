@@ -85,17 +85,17 @@ const primeContainerRouter: RouteMap = {
 };
 
 const gitHubRouter: RouteMap = {
-  'github': {
-    upstream: 'https://github.com',
-    type: ServiceType.DELEGATE,
-    middlewares: [
-      DynamicUpstreamMiddleware.id
-    ],
-    allowUpstreams: [
-      '.github.com',
-      '.githubusercontent.com'
-    ]
-  }
+  // 'github': {
+  //   upstream: 'https://github.com',
+  //   type: ServiceType.DELEGATE,
+  //   middlewares: [
+  //     DynamicUpstreamMiddleware.id
+  //   ],
+  //   allowUpstreams: [
+  //     '.github.com',
+  //     '.githubusercontent.com'
+  //   ]
+  // }
 };
 
 
