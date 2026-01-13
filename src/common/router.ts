@@ -1,5 +1,6 @@
 import { ParsedRoute, RouteConfig, RouteMap } from '../types/router';
 import { RouteMatchType, ServiceType } from '../constants';
+import { isContainerRequest } from './protocols/container';
 
 /**
  * 路由引擎
@@ -71,7 +72,7 @@ function matchDockerV2Path(url: URL, request: Request, routes: RouteMap): Parsed
   const pathname = url.pathname;
 
   // 前置检查：必须是 /v2/ 开头且符合容器客户端特征
-  if (!pathname.startsWith('/v2/') || !isDockerRequest(request)) return null;
+  if (!pathname.startsWith('/v2/') || !isContainerRequest(request)) return null;
 
   // 直接匹配 即 /v2/docker.cr/ 模式匹配
   let directSegmentIndex = pathname.indexOf('/', 4);
@@ -208,31 +209,6 @@ function getPathSegments(pathname: string, start: number, depth: number): { segm
   return { segments, indices };
 }
 
-// 判断是否Docker请求，仅Path模式下使用
-function isDockerRequest(request: Request): boolean {
-  const headers = request.headers;
-  const ua = headers.get('User-Agent')?.toLowerCase() || '';
-  const accept = headers.get('Accept')?.toLowerCase() || '';
-  // 1. 协议特征检测 (最准确)
-  if (accept.includes('vnd.docker') || accept.includes('vnd.oci')) {
-    return true;
-  }
-  // 2. 客户端特征检测
-  // 用于覆盖 docker login / 握手 等不带特殊 Accept 的场景
-  const knownClients = [
-    'docker/',      // Docker CLI
-    'containerd/',  // Kubernetes / Containerd
-    'kaniko/',      // CI/CD 构建工具
-    'podman/',      // RedHat Podman
-    'crio/',
-    'cri-o/',       // K8s Runtime
-    'buildkit/',    // Docker Buildx
-    'skopeo/'       // 镜像搬运工具
-  ];
-
-  return knownClients.some(client => ua.includes(client));
-}
-
 // 判断是否允许的上游地址
 export function isUpstreamAllowed(config: RouteConfig, upstream: string) {
   let { allowUpstreams } = config;
@@ -257,4 +233,9 @@ export function isUpstreamAllowed(config: RouteConfig, upstream: string) {
     // 情况 2: 精确匹配规则
     return target === cleanRule;
   });
+}
+
+// 判断是否为浏览器敏感路径
+export function isSensitivePath(path: string): boolean {
+  return /^\/(login|session|auth|settings|join|password_reset|admin|profile|api\/v\d)/i.test(path);
 }

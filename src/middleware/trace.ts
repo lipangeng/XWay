@@ -1,7 +1,7 @@
 import { AppContext, Middleware } from '../types';
 
 export const TraceMiddleware: Middleware = {
-  id: 'trace',
+  id: 'Trace',
   priority: Number.MIN_SAFE_INTEGER,
   description: 'Request trace',
   // 处理内容

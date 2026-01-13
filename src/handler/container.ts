@@ -79,11 +79,7 @@ async function handleRegistryRequest(context: AppContext, upstream: string): Pro
   }
 
   // 正常下载
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers: response.headers
-  });
+  return response;
 }
 
 // =============================================================================
@@ -119,14 +115,7 @@ async function handleAuthRequest(context: AppContext, upstream: string): Promise
     redirect: 'follow'
   });
 
-  const response = await fetch(authReq);
-
-  // 4. 返回 Token 给客户端
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers: response.headers
-  });
+  return fetch(authReq);
 }
 
 // =============================================================================
