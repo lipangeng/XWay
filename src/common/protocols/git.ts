@@ -4,7 +4,7 @@ export function isGitAction(request: Request, preferred_path: string | null | un
   if (/(?:^|\/)(?:info\/refs|git-upload-pack|git-receive-pack)(?:\/|$)/i.test(path) || path.endsWith('.git')) {
     return true;
   }
-  const service = new URL(path).searchParams.get('service');
+  const service = new URL(request.url).searchParams.get('service');
   if (service === 'git-upload-pack' || service === 'git-receive-pack') {
     return true;
   }

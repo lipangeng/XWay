@@ -21,10 +21,10 @@ export function Forbidden(ctx: AppContext | null): Response {
     <div class="container">
         <h1>403 Forbidden</h1>
         <p>Access denied. This request violates security policies or is not permitted.</p>
-        <div class="trace">Trace ID: ${ctx?.params?.trace?.requestId} • XWay Edge</div>
+        <div class="trace">Trace ID: ${ctx?.params?.trace?.requestId} • XWay </div>
     </div>
 </body>
 </html>
   `;
-  return new Response(html, { status: 403 });
+  return new Response(html, { status: 403, headers: { 'content-type': 'text/html; charset=utf-8' } });
 }
