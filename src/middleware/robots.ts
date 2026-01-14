@@ -11,7 +11,7 @@ Contact: lipangeng@outlook.com
 
 export const RobotsMiddleware: Middleware = {
   id: 'Robots',
-  priority: Number.MAX_SAFE_INTEGER,
+  priority: Number.MIN_SAFE_INTEGER + 2000,
   description: 'robots.txt',
   async handle(context: AppContext, next: MiddlewareNextFunction): Promise<Response> {
     const { route } = context;
