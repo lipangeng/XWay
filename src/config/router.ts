@@ -45,6 +45,10 @@ const containerRouter: RouteMap = {
     upstream: 'https://container-registry.oracle.com',
     type: ServiceType.CONTAINER
   },
+  'codeberg.cr': {
+    upstream: 'https://codeberg.org',
+    type: ServiceType.CONTAINER
+  },
   'cloudsmith.cr': {
     upstream: 'https://docker.cloudsmith.io',
     type: ServiceType.CONTAINER
