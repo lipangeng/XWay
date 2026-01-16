@@ -49,6 +49,10 @@ const containerRouter: RouteMap = {
     upstream: 'https://codeberg.org',
     type: ServiceType.CONTAINER
   },
+  'forgejo.cr': {
+    upstream: 'https://code.forgejo.org',
+    type: ServiceType.CONTAINER
+  },
   'cloudsmith.cr': {
     upstream: 'https://docker.cloudsmith.io',
     type: ServiceType.CONTAINER
