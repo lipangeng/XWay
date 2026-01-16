@@ -62,7 +62,8 @@ async function handleRegistryRequest(context: AppContext, upstream: string): Pro
         redirect: 'follow',
         headers: cloneHeaders(null, {
           set: {
-            [HeaderNames.UserAgent]: request.headers.get(HeaderNames.UserAgent)
+            [HeaderNames.UserAgent]: request.headers.get(HeaderNames.UserAgent),
+            [HeaderNames.Accept]: request.headers.get(HeaderNames.Accept)
           }
         })
       });
