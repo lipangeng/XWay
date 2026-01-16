@@ -4,12 +4,14 @@ import { customMiddlewares } from '../custom/middleware';
 import { DynamicUpstreamMiddleware } from './dynamic-upstream';
 import { RobotsMiddleware } from './robots';
 import { GitEnforcerMiddleware } from './git-enforcer';
+import { GitHubEnforcerMiddleware } from './github-enforcer';
 
 const SYSTEM_MIDDLEWARES: Record<string, Middleware> = {
   [TraceMiddleware.id]: TraceMiddleware,
   [DynamicUpstreamMiddleware.id]: DynamicUpstreamMiddleware,
   [RobotsMiddleware.id]: RobotsMiddleware,
-  [GitEnforcerMiddleware.id]: GitEnforcerMiddleware
+  [GitEnforcerMiddleware.id]: GitEnforcerMiddleware,
+  [GitHubEnforcerMiddleware.id]: GitHubEnforcerMiddleware
 };
 
 const ALL_MIDDLEWARES = { ...SYSTEM_MIDDLEWARES, ...customMiddlewares };

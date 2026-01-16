@@ -2,6 +2,7 @@ import { ServiceType } from '../constants';
 import { RouteMap } from '../types/router';
 import { DynamicUpstreamMiddleware } from '../middleware/dynamic-upstream';
 import { GitEnforcerMiddleware } from '../middleware/git-enforcer';
+import { GitHubEnforcerMiddleware } from '../middleware/github-enforcer';
 
 // 容器路由配置
 const containerRouter: RouteMap = {
@@ -99,7 +100,7 @@ const gitHubRouter: RouteMap = {
     type: ServiceType.DELEGATE,
     middlewares: [
       DynamicUpstreamMiddleware.id,
-      GitEnforcerMiddleware.id
+      GitHubEnforcerMiddleware.id
     ],
     allowUpstreams: [
       '.github.com',
