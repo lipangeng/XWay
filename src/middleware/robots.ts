@@ -4,9 +4,22 @@ import { isUpstreamAllowed } from '../common/router';
 // 定义 robots.txt 静态内容（可自定义，贴合你的代理场景）
 const ROBOTS_CONTENT = `User-agent: *
 Disallow: /
-Comment: This is a open-source proxy (XWay), no phishing behavior.
-Source: https://github.com/lipangeng/XWay
-Contact: lipangeng@outlook.com
+# -------------------------------------------------------------------------
+# XWay: Distributed Edge Gateway for Global R&D Resource Orchestration
+# -------------------------------------------------------------------------
+# Purpose:
+# 1. Performance benchmarking of edge computing protocols (V8/WASM).
+# 2. Global Software Supply Chain synchronization & CI/CD acceleration.
+# 3. Secure internal access to distributed R&D assets and cloud-native registries.
+#
+# Technical Compliance:
+# This instance implements strict protocol-level auditing (GitEnforcer/GitHubEnforcer...).
+# It is a dedicated node for technical research and internal CI/CD performance testing.
+# Unauthorized use or non-R&D activities are restricted by design.
+#
+# Documentation: https://github.com/lipangeng/XWay
+# Technical-Support: lipangeng@outlook.com
+# -------------------------------------------------------------------------
 `;
 
 export const RobotsMiddleware: Middleware = {
