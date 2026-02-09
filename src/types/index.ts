@@ -1,7 +1,6 @@
-import { ServiceType } from '../constants';
-import { ParsedRoute, RouteMap } from './router';
+import { ResolvedRoute, RouteDefinition } from './router';
 
-export interface Env {
+export interface AppEnv extends Env {
   ROUTE_MODE?: string; // 可选: 'auto' | 'domain' | 'path'
   BASE_DOMAIN?: string; // 本程序的基本域名
 
@@ -25,8 +24,6 @@ export interface Middleware {
 }
 
 export interface RequestHandler {
-  // 处理器对应的服务类型 (作为唯一标识，e.g. ServiceType.GITHUB)
-  type: ServiceType;
   // (可选) 描述信息
   description?: string;
   // 核心处理逻辑
@@ -35,17 +32,17 @@ export interface RequestHandler {
 
 /* 应用配置 */
 export interface AppConfig {
-  router: RouteMap;
+  routers: Record<string, RouteDefinition>;
 }
 
 /* 应用上下文 */
 export interface AppContext {
   request: Request;
   runtime: {
-    env: Env;
+    env: AppEnv;
     ctx: ExecutionContext;
   };
-  route: ParsedRoute;
+  route: ResolvedRoute;
   middlewares: Middleware[];
   params: Record<string, any>;
 }

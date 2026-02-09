@@ -7,7 +7,6 @@ import { applyHeaderRules, applyRewriteRules, cloneHeaders, HeaderNames } from '
  * 兼容 Docker Registry V2 API
  */
 export const ContainerHandler: RequestHandler = {
-  type: ServiceType.CONTAINER,
   description: 'Container request handler',
   handle(context: AppContext) {
     const { route } = context;

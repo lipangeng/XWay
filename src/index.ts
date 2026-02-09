@@ -11,7 +11,7 @@
  * Learn more at https://developers.cloudflare.com/workers/
  */
 import { XWayApp } from './app';
-import { Env } from './types';
+import { AppEnv } from './types';
 import { TraceMiddleware } from './middleware/trace';
 import { RobotsMiddleware } from './middleware/robots';
 
@@ -20,7 +20,7 @@ export const app = new XWayApp();
 app.useMiddlewares([TraceMiddleware, RobotsMiddleware]);
 
 export default {
-  async fetch(request, env: Env, ctx): Promise<Response> {
+  async fetch(request, env: AppEnv, ctx): Promise<Response> {
 
     // 首次启动时加载配置文件
     // 由于是冷启动，可能速度会较慢
@@ -33,4 +33,4 @@ export default {
     // 启动应用
     return app.dispatch(request, env, ctx);
   }
-} satisfies ExportedHandler<Env>;
+} satisfies ExportedHandler<AppEnv>;

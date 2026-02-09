@@ -1,13 +1,11 @@
 import { loadConfig } from './config/loader';
 import { parseRoute } from './common/router';
-import { ParsedRoute, RouteMap } from './types/router';
-import { AppConfig, AppContext, Env, Middleware } from './types';
-import { getMiddleware } from './middleware';
+import { ResolvedRoute } from './types/router';
+import { AppConfig, AppContext, AppEnv, Middleware } from './types';
 import { RouteMatchType, RouteMiddlewareMode } from './constants';
 import { handleRequest } from './handler';
 import { HomeHandler } from './handler/home';
-import { TraceMiddleware } from './middleware/trace';
-import { RobotsMiddleware } from './middleware/robots';
+import { serviceProfiles } from './config/service';
 
 
 export class XWayApp {
@@ -20,7 +18,7 @@ export class XWayApp {
   }
 
   /* 加载配置文件 */
-  async load(env: Env) {
+  async load(env: AppEnv) {
     let loaded = loadConfig(env);
     if (loaded) {
       this.config = loaded;
@@ -35,9 +33,9 @@ export class XWayApp {
   /*
   进行请求处理
   */
-  async dispatch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async dispatch(request: Request, env: AppEnv, ctx: ExecutionContext): Promise<Response> {
     // 1. 处理路由
-    let route: ParsedRoute = parseRoute(request, <RouteMap>this.config?.router);
+    let route: ResolvedRoute = parseRoute(request, this.config?.routers);
 
     // 2. 构建中间件链 (Strategy Pattern)
     const middlewares: Middleware[] = [];
@@ -47,20 +45,27 @@ export class XWayApp {
       if (routeConfig.middlewareMode === RouteMiddlewareMode.OVERLAY) {
         // Replace 模式: 仅使用配置的中间件
         if (routeConfig.middlewares) {
-          for (let middlewareId of routeConfig.middlewares) {
-            const mw = getMiddleware(middlewareId);
-            if (mw) middlewares.push(mw);
-            else console.warn(`[XWay] Middleware "${middlewareId}" not found`);
+          for (let middleware of routeConfig.middlewares) {
+            if (middleware) middlewares.push(middleware);
+            else console.warn(`Found ${middleware} middleware`);
           }
         }
       } else {
         // Extend 模式 (默认): 默认 + 配置
         middlewares.push(...this.defaultMiddlewares);
+        // 注入ServiceType对应的默认中间件配置
+        let serviceType = routeConfig.type;
+        if (serviceType) {
+          let serviceProfile = serviceProfiles[serviceType];
+          if (serviceProfile && serviceProfile.middlewares) {
+            middlewares.push(...serviceProfile.middlewares);
+          }
+        }
+        // 注入手动配置的中间件
         if (routeConfig.middlewares) {
-          for (let middlewareId of routeConfig.middlewares) {
-            const mw = getMiddleware(middlewareId);
-            if (mw) middlewares.push(mw);
-            else console.warn(`[XWay] Middleware "${middlewareId}" not found`);
+          for (let middleware of routeConfig.middlewares) {
+            if (middleware) middlewares.push(middleware);
+            else console.warn(`Found ${middleware} middleware`);
           }
         }
       }
@@ -87,6 +92,7 @@ export class XWayApp {
   }
 }
 
+// 链式调用中间件配置
 function invokeMiddleware(context: AppContext, index: number): Promise<Response> {
   // 检查是否到达链条末端
   if (index >= context.middlewares.length) {

@@ -1,11 +1,11 @@
 import { ServiceType } from '../constants';
-import { RouteMap } from '../types/router';
+import { RouteDefinition } from '../types/router';
 import { DynamicUpstreamMiddleware } from '../middleware/dynamic-upstream';
-import { GitEnforcerMiddleware } from '../middleware/git-enforcer';
-import { GitHubEnforcerMiddleware } from '../middleware/github-enforcer';
+import { safeAssign } from '../common/common';
+import { GitHubPolicyMiddleware } from '../middleware/github-policy';
 
 // 容器路由配置
-const containerRouter: RouteMap = {
+const containerRouter: Record<string, RouteDefinition> = {
   'docker.cr': {
     upstream: 'https://registry-1.docker.io',
     type: ServiceType.CONTAINER
@@ -85,7 +85,7 @@ const containerRouter: RouteMap = {
 };
 
 // 主要映射配置,用来简化访问路径
-const primeContainerRouter: RouteMap = {
+const primeContainerRouter: Record<string, RouteDefinition> = {
   'docker': containerRouter['docker.cr'],
   'quay': containerRouter['quay.cr'],
   'gcr': containerRouter['gcr.cr'],
@@ -94,13 +94,13 @@ const primeContainerRouter: RouteMap = {
   'mcr': containerRouter['mcr.cr']
 };
 
-const gitHubRouter: RouteMap = {
+const gitHubRouter: Record<string, RouteDefinition> = {
   'github': {
     upstream: 'https://github.com',
     type: ServiceType.DELEGATE,
     middlewares: [
-      DynamicUpstreamMiddleware.id,
-      GitHubEnforcerMiddleware.id
+      DynamicUpstreamMiddleware,
+      GitHubPolicyMiddleware
     ],
     allowUpstreams: [
       '.github.com',
@@ -109,32 +109,26 @@ const gitHubRouter: RouteMap = {
   }
 };
 
+const aiRouter: Record<string, RouteDefinition> = {
+  // 'openai.ai': {
+  //   upstream: 'https://api.openai.com',
+  //   type: ServiceType.AI
+  // },
+  // 'anthropic.ai': {
+  //   upstream: 'https://api.anthropic.com',
+  //   type: ServiceType.AI
+  // },
+  // 'gemini.ai': {
+  //   upstream: 'https://generativelanguage.googleapis.com',
+  //   type: ServiceType.AI
+  // }
+};
 
 /**
  * 安全合并多个路由表
  * 如果发现重复的 Key，直接抛出异常，阻止程序启动/部署
  */
-export function safeMerge(...routeMaps: RouteMap[]): RouteMap {
-  const result: RouteMap = {};
-
-  for (const map of routeMaps) {
-    for (const key in map) {
-      // 检查 Key 是否已经存在
-      if (Object.prototype.hasOwnProperty.call(result, key)) {
-        throw new Error(
-          `[Config Conflict] 发现重复的路由配置项: "${key}"。请检查各分类配置，确保 Key 唯一。`
-        );
-      }
-      if (!map[key]) {
-        throw new Error(
-          `[Config Conflict] 发现空的路由配置项: "${key}"。请检查各分类配置，确保配置不为空。`
-        );
-      }
-      result[key] = map[key];
-    }
-  }
-
-  return result;
-}
-
-export const defaultRoutes: RouteMap = safeMerge(containerRouter, primeContainerRouter, gitHubRouter);
+export const defaultRoutes = safeAssign(
+  {},
+  [containerRouter, primeContainerRouter, gitHubRouter, aiRouter]
+) as Record<string, RouteDefinition>;

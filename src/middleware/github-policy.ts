@@ -1,9 +1,9 @@
 import { AppContext, Middleware } from '../types';
 import { isGitAction, isGitClient, isGitResource, isLfsAction } from '../common/protocols/git';
-import { Forbidden } from '../common/http';
+import { forbidden } from '../common/http';
 
-export const GitEnforcerMiddleware: Middleware = {
-  id: 'GitEnforcer',
+export const GitHubPolicyMiddleware: Middleware = {
+  id: 'GitHubEnforcer',
   priority: 1000,
   description: 'Request trace',
   // 处理内容
@@ -11,9 +11,13 @@ export const GitEnforcerMiddleware: Middleware = {
     const { request, route } = ctx;
     const { path, upstream } = route;
     // 进行检查，只放行特定的请求
-    if (!isGitClient(request, path) && !isGitAction(request, path) && !isLfsAction(request, path) && !isGitResource(request, path)) {
-      return Forbidden(ctx);
+    if (!isGitClient(request, path) && !isGitAction(request, path) && !isLfsAction(request, path) && !isGitResource(request, path) && !isGithubContent(upstream || '')) {
+      return forbidden(ctx);
     }
     return next();
   }
 };
+
+function isGithubContent(upstream: string) {
+  return upstream.endsWith('.githubusercontent.com');
+}

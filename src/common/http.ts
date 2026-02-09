@@ -2,7 +2,7 @@
 import { AppContext } from '../types';
 
 // 返回禁止访问页main
-export function Forbidden(ctx: AppContext | null): Response {
+export function forbidden(ctx: AppContext | null): Response {
   const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -27,4 +27,32 @@ export function Forbidden(ctx: AppContext | null): Response {
 </html>
   `;
   return new Response(html, { status: 403, headers: { 'content-type': 'text/html; charset=utf-8' } });
+}
+
+// 构建Url信息
+export function buildUrl(options: {
+  upstream: string | null | undefined;
+  path?: string | null | undefined;
+  originUrl?: string | URL;
+}): string {
+  const { upstream, path, originUrl } = options;
+
+  if (!upstream) throw new Error('upstream is required');
+
+  // 1) upstream 去掉尾部 /
+  const base = upstream.replace(/\/+$/, '');
+
+  // 2) path 规范化：空 -> ''；非空确保以 / 开头
+  const rawPath = path ?? '';
+  const normalizedPath =
+    rawPath === '' ? '' : rawPath.startsWith('/') ? rawPath : `/${rawPath}`;
+
+  // 3) search（含 ?）
+  let search = '';
+  if (originUrl) {
+    const u = typeof originUrl === 'string' ? new URL(originUrl) : originUrl;
+    search = u.search; // '' or '?a=1'
+  }
+
+  return `${base}${normalizedPath}${search}`;
 }

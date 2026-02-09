@@ -1,5 +1,4 @@
 import { AppContext, Middleware, MiddlewareNextFunction } from '../types';
-import { isUpstreamAllowed } from '../common/router';
 
 // 定义 robots.txt 静态内容（可自定义，贴合你的代理场景）
 const ROBOTS_CONTENT = `User-agent: *

@@ -1,11 +1,11 @@
-import { ParsedRoute, RouteConfig, RouteMap } from '../types/router';
+import { ResolvedRoute, RouteDefinition } from '../types/router';
 import { RouteMatchType, ServiceType } from '../constants';
 import { isContainerRequest } from './protocols/container';
 
 /**
  * 路由引擎
  */
-export function parseRoute(request: Request, routes: RouteMap): ParsedRoute {
+export function parseRoute(request: Request, routes: Record<string, RouteDefinition> | null | undefined): ResolvedRoute {
   // 前置入参校验（防空）
   if (!request || !routes || typeof routes !== 'object') {
     return {
@@ -38,7 +38,7 @@ export function parseRoute(request: Request, routes: RouteMap): ParsedRoute {
 // =============================================================================
 // 域名匹配逻辑 (O(1) 贪婪搜索)
 // =============================================================================
-function matchDomain(url: URL, request: Request, routes: RouteMap): ParsedRoute | null {
+function matchDomain(url: URL, request: Request, routes: Record<string, RouteDefinition>): ResolvedRoute | null {
   // 提取hostname
   const hostname = url.hostname;
   if (!hostname) return null;
@@ -68,7 +68,7 @@ function matchDomain(url: URL, request: Request, routes: RouteMap): ParsedRoute 
 // =============================================================================
 // Docker /v2/ 特殊路径 匹配处理
 // =============================================================================
-function matchDockerV2Path(url: URL, request: Request, routes: RouteMap): ParsedRoute | null {
+function matchDockerV2Path(url: URL, request: Request, routes: Record<string, RouteDefinition>): ResolvedRoute | null {
   const pathname = url.pathname;
 
   // 前置检查：必须是 /v2/ 开头且符合容器客户端特征
@@ -124,7 +124,7 @@ function matchDockerV2Path(url: URL, request: Request, routes: RouteMap): Parsed
 // =============================================================================
 // 通用路径匹配逻辑
 // =============================================================================
-function matchGenericPath(url: URL, request: Request, routes: RouteMap): ParsedRoute | null {
+function matchGenericPath(url: URL, request: Request, routes: Record<string, RouteDefinition>): ResolvedRoute | null {
   const pathname = url.pathname;
 
   // 直接匹配 即 /docker.cr/ 模式匹配
@@ -210,7 +210,7 @@ function getPathSegments(pathname: string, start: number, depth: number): { segm
 }
 
 // 判断是否允许的上游地址
-export function isUpstreamAllowed(config: RouteConfig, upstream: string) {
+export function isUpstreamAllowed(config: RouteDefinition, upstream: string) {
   let { allowUpstreams } = config;
 
   // 统一转为小写，域名不区分大小写

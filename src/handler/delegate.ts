@@ -1,9 +1,9 @@
 import { RequestHandler, AppContext } from '../types';
 import { ServiceType } from '../constants';
 import { applyHeaderRules, applyRewriteRules, cloneHeaders, HeaderNames } from '../common/fetcher';
+import { buildUrl } from '../common/http';
 
 export const DelegateHandler: RequestHandler = {
-  type: ServiceType.DELEGATE,
   description: 'Container request handler',
   handle(ctx: AppContext): Promise<Response> {
     const { request, route } = ctx;
@@ -11,7 +11,7 @@ export const DelegateHandler: RequestHandler = {
 
     // 执行路径重写 (Rewrite)
     // 注意：此处操作的是 route.path，可能是被中间件修改过的，也可能是原始的
-    let proxyUrl = applyRewriteRules(config, route.upstream!.replace(/\/+$/, '') + route.path + (new URL(request.url).search));
+    let proxyUrl = applyRewriteRules(config, buildUrl({ upstream: route.upstream, path: route.path, originUrl: request.url }));
 
     // 准备请求头
     let proxyHeaders = applyHeaderRules(config, cloneHeaders(request.headers, { remove: [HeaderNames.Host, HeaderNames.Referer] }));

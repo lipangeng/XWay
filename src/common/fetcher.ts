@@ -1,4 +1,4 @@
-import { RouteConfig } from '../types/router';
+import { RouteDefinition } from '../types/router';
 
 export const HeaderNames = {
   // 标准请求头
@@ -40,7 +40,7 @@ export function cloneHeaders(headers: Headers | null, options: CloneHeaderOption
 }
 
 // 应用Headers规则
-export function applyHeaderRules(config: RouteConfig, headers: Headers): Headers {
+export function applyHeaderRules(config: RouteDefinition, headers: Headers): Headers {
   if (config?.rules?.removeHeaders) {
     Object.entries(config.rules.removeHeaders).forEach(([k, v]) => headers.delete(k));
   }
@@ -52,7 +52,7 @@ export function applyHeaderRules(config: RouteConfig, headers: Headers): Headers
 }
 
 // 应用Rewrite规则
-export function applyRewriteRules(config: RouteConfig, path: string): string {
+export function applyRewriteRules(config: RouteDefinition, path: string): string {
   let targetPath = path;
   if (config?.rules?.rewrite) {
     for (const [pattern, replacement] of Object.entries(config.rules.rewrite)) {
