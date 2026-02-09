@@ -1,15 +1,16 @@
 import { loadConfig } from './config/loader';
 import { parseRoute } from './common/router';
 import { ResolvedRoute } from './types/router';
-import { AppConfig, AppContext, AppEnv, Middleware } from './types';
+import { AppConfig, AppContext, AppEnv, Middleware, MiddlewareRef } from './types';
 import { RouteMatchType, RouteMiddlewareMode } from './constants';
 import { handleRequest } from './handler';
 import { HomeHandler } from './handler/home';
 import { serviceProfiles } from './config/service';
+import { isMiddleware } from './middleware';
 
 
 export class XWayApp {
-  private defaultMiddlewares: Middleware[] = [];
+  private defaultMiddlewares: MiddlewareRef[] = [];
   private config: AppConfig | undefined;
 
   useMiddlewares(middlewares: Middleware[]) {
@@ -38,7 +39,7 @@ export class XWayApp {
     let route: ResolvedRoute = parseRoute(request, this.config?.routers);
 
     // 2. 构建中间件链 (Strategy Pattern)
-    const middlewares: Middleware[] = [];
+    const middlewares: MiddlewareRef[] = [];
     const routeConfig = route.config;
 
     if (routeConfig) {
@@ -73,8 +74,14 @@ export class XWayApp {
       middlewares.push(...this.defaultMiddlewares);
     }
     // 中间件优先级排序，从小到大排序
-    middlewares.sort((a: Middleware, b: Middleware) => {
-      return (a.priority || 0) - (b.priority || 0);
+    middlewares.map((mr: MiddlewareRef) => isMiddleware(mr) ? { middleware: mr } : mr)
+      .sort((a: { middleware: Middleware, params?: Record<PropertyKey, any> }, b: { middleware: Middleware, params?: Record<PropertyKey, any> }) => {
+        return (a.middleware.priority ?? 0) - (b.middleware.priority ?? 0);
+      });
+
+    // 中间件优先级排序，从小到大排序
+    middlewares.sort((a: MiddlewareRef, b: MiddlewareRef) => {
+      return ((isMiddleware(a) ? a.priority : a.middleware.priority) ?? 0) - ((isMiddleware(b) ? b.priority : b.middleware.priority) ?? 0);
     });
 
     // 构建上下文
@@ -103,5 +110,8 @@ function invokeMiddleware(context: AppContext, index: number): Promise<Response>
     return handleRequest(context);
   }
   // 链式调用中间件
-  return context.middlewares[index]?.handle(context, () => invokeMiddleware(context, index + 1));
+  let middleware = context.middlewares[index];
+  return isMiddleware(middleware) ?
+    middleware.handle(context, () => invokeMiddleware(context, index + 1)) :
+    middleware.middleware!.handle(context, () => invokeMiddleware(context, index + 1), middleware.params);
 }

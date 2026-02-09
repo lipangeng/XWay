@@ -99,12 +99,16 @@ const gitHubRouter: Record<string, RouteDefinition> = {
     upstream: 'https://github.com',
     type: ServiceType.DELEGATE,
     middlewares: [
-      DynamicUpstreamMiddleware,
+      {
+        middleware: DynamicUpstreamMiddleware,
+        params: {
+          allowUpstreams: [
+            '.github.com',
+            '.githubusercontent.com'
+          ]
+        }
+      },
       GitHubPolicyMiddleware
-    ],
-    allowUpstreams: [
-      '.github.com',
-      '.githubusercontent.com'
     ]
   }
 };

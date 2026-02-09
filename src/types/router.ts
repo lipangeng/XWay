@@ -1,22 +1,17 @@
 // 路由配置结构
 import { RouteMatchType, RouteMiddlewareMode, ServiceType } from '../constants';
-import { Middleware } from './index';
+import { Middleware, MiddlewareRef } from './index';
 
 export interface RouteDefinition {
   upstream: string;
   type: ServiceType;
   description?: string;
 
-  // [Renamed] 动态上游白名单
-  // 允许客户端通过路径 (e.g. /raw.githubusercontent.com/...) 动态指定上游
-  // 只有在此列表中的域名才会被允许作为 Upstream，防止 SSRF。
-  allowUpstreams?: string[];
-
   // [Middleware Strategy]
   // extend: 执行 全局默认 + 此处配置 (默认)
   // replace: 仅执行 此处配置 (完全接管)
   middlewareMode?: RouteMiddlewareMode | string;
-  middlewares?: Middleware[]; // 中间件 ID 列表
+  middlewares?: MiddlewareRef[]; // 中间件 ID 列表
 
   // [Level 1 Rules]
   rules?: {

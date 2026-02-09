@@ -210,13 +210,12 @@ function getPathSegments(pathname: string, start: number, depth: number): { segm
 }
 
 // 判断是否允许的上游地址
-export function isUpstreamAllowed(config: RouteDefinition, upstream: string) {
-  let { allowUpstreams } = config;
+export function isUpstreamAllowed(allowedUpstreams: Array<string>, upstream: string) {
 
   // 统一转为小写，域名不区分大小写
   const target = upstream.toLowerCase();
 
-  return [new URL(config.upstream).hostname, ...allowUpstreams || []].some(rule => {
+  return (allowedUpstreams ?? []).some(rule => {
     const cleanRule = rule.toLowerCase();
 
     // 情况 1: 泛域名规则 (以 . 开头)

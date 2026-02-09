@@ -20,8 +20,11 @@ export interface Middleware {
   // (可选) 优先级，数字越小越先执行
   priority?: number;
   // 核心执行的函数
-  handle: (ctx: AppContext, next: MiddlewareNextFunction) => Promise<Response>;
+  handle: (ctx: AppContext, next: MiddlewareNextFunction, params?: Record<PropertyKey, any>) => Promise<Response>;
 }
+
+// 中间件配置
+export type MiddlewareRef = Middleware | { middleware: Middleware, params?: Record<PropertyKey, any> };
 
 export interface RequestHandler {
   // (可选) 描述信息
@@ -43,6 +46,6 @@ export interface AppContext {
     ctx: ExecutionContext;
   };
   route: ResolvedRoute;
-  middlewares: Middleware[];
+  middlewares: MiddlewareRef[];
   params: Record<string, any>;
 }
