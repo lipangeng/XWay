@@ -3,6 +3,7 @@ import { RouteDefinition } from '../types/router';
 import { DynamicUpstreamMiddleware } from '../middleware/dynamic-upstream';
 import { safeAssign } from '../common/common';
 import { GitHubPolicyMiddleware } from '../middleware/github-policy';
+import { PathPolicyMiddleware } from '../middleware/path-policy';
 
 // 容器路由配置
 const containerRouter: Record<string, RouteDefinition> = {
@@ -114,18 +115,18 @@ const gitHubRouter: Record<string, RouteDefinition> = {
 };
 
 const aiRouter: Record<string, RouteDefinition> = {
-  // 'openai.ai': {
-  //   upstream: 'https://api.openai.com',
-  //   type: ServiceType.AI
-  // },
-  // 'anthropic.ai': {
-  //   upstream: 'https://api.anthropic.com',
-  //   type: ServiceType.AI
-  // },
-  // 'gemini.ai': {
-  //   upstream: 'https://generativelanguage.googleapis.com',
-  //   type: ServiceType.AI
-  // }
+  'openai.ai': {
+    upstream: 'https://api.openai.com',
+    type: ServiceType.AI,
+    middlewares: [
+      {
+        middleware: PathPolicyMiddleware,
+        params: {
+          allow: ['^/v1/']
+        }
+      }
+    ]
+  }
 };
 
 /**

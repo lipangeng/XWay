@@ -12,7 +12,7 @@ export interface AppEnv extends Env {
 export type MiddlewareNextFunction = () => Promise<Response>;
 
 // 中间件配置
-export interface Middleware {
+export interface Middleware<P = Record<PropertyKey, any>> {
   // 唯一标识
   id: string;
   // (可选) 描述信息
@@ -20,7 +20,7 @@ export interface Middleware {
   // (可选) 优先级，数字越小越先执行
   priority?: number;
   // 核心执行的函数
-  handle: (ctx: AppContext, next: MiddlewareNextFunction, params?: Record<PropertyKey, any>) => Promise<Response>;
+  handle: (ctx: AppContext, next: MiddlewareNextFunction, params?: P) => Promise<Response>;
 }
 
 // 中间件配置
