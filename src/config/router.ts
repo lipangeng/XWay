@@ -129,11 +129,16 @@ const aiRouter: Record<string, RouteDefinition> = {
   }
 };
 
+// 主要映射配置,用来简化访问路径
+const primeAIRouter: Record<string, RouteDefinition> = {
+  'openai': aiRouter['openai.ai']
+};
+
 /**
  * 安全合并多个路由表
  * 如果发现重复的 Key，直接抛出异常，阻止程序启动/部署
  */
 export const defaultRoutes = safeAssign(
   {},
-  [containerRouter, primeContainerRouter, gitHubRouter, aiRouter]
+  [containerRouter, primeContainerRouter, gitHubRouter, aiRouter, primeAIRouter]
 ) as Record<string, RouteDefinition>;
