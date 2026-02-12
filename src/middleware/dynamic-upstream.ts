@@ -15,7 +15,7 @@ export const DynamicUpstreamMiddleware: Middleware = {
     // 只有配置了 allowUpstreams 的路由才启用此逻辑
     if (config && (rawPath?.startsWith('http://') || rawPath?.startsWith('https://'))) {
       const target = new URL(rawPath);
-      if (isUpstreamAllowed([config.upstream, ...params?.allowedUpstreams ?? []], target.hostname)) {
+      if (isUpstreamAllowed([new URL(config.upstream).hostname, ...(params?.allowedUpstreams ?? [])], target.hostname)) {
         // 修改当前生效的路由信息
         route.upstream = target.origin;
         route.path = target.pathname;

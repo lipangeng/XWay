@@ -103,7 +103,7 @@ const gitHubRouter: Record<string, RouteDefinition> = {
       {
         middleware: DynamicUpstreamMiddleware,
         params: {
-          allowUpstreams: [
+          allowedUpstreams: [
             '.github.com',
             '.githubusercontent.com'
           ]
