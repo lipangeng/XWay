@@ -1,6 +1,7 @@
 import { AppContext, RequestHandler } from '../types';
 import { RouteMatchType, ServiceType } from '../constants';
 import { applyHeaderRules, applyRewriteRules, cloneHeaders, HeaderNames } from '../common/fetcher';
+import { getPreferredOrigin } from '../common/http';
 
 /**
  * 容器镜像仓库专用 Handler
@@ -170,7 +171,7 @@ function parseWwwAuthenticate(header: string): Record<string, string> {
  */
 function rewriteWwwAuthenticate(header: string, context: AppContext): string {
   const { request, route } = context;
-  const currentUrl = new URL(request.url);
+  const currentUrl = new URL(getPreferredOrigin(request));
 
   // 计算当前代理的 Auth 地址
   let proxyAuthPath = '';

@@ -56,3 +56,71 @@ export function buildUrl(options: {
 
   return `${base}${normalizedPath}${search}`;
 }
+
+/**
+ * 获取最优Proto选项，优先使用 X-Forwarded-*
+ */
+export function getPreferredScheme(request: Request): string {
+  const forwardedProto = request.headers.get('x-Forwarded-Proto');
+  if (forwardedProto) {
+    return forwardedProto.split(',')[0].trim().toLowerCase();
+  }
+  return new URL(request.url).protocol.replace(':', '').toLowerCase();
+}
+
+/**
+ * 获取最优Host选项，优先使用 X-Forwarded-*
+ */
+export function getPreferredHost(request: Request): string {
+  const forwardedHost = request.headers.get('x-Forwarded-Host');
+  if (forwardedHost) {
+    return forwardedHost.split(',')[0].trim();
+  }
+
+  const host = request.headers.get('Host');
+  if (host) {
+    return host;
+  }
+
+  return new URL(request.url).hostname;
+}
+
+/**
+ * 获取最优Port选项，优先使用 X-Forwarded-*
+ */
+export function getPreferredPort(request: Request): string {
+  const forwardedPort = request.headers.get('x-Forwarded-Port');
+  if (forwardedPort) {
+    return forwardedPort.split(',')[0].trim();
+  }
+
+  const url = new URL(request.url);
+  if (url.port) {
+    return url.port;
+  }
+
+  const scheme = getPreferredScheme(request);
+  if (scheme === 'https') return '443';
+  if (scheme === 'http') return '80';
+
+  return '';
+}
+
+/**
+ * 获取最优Url选项，优先使用 X-Forwarded-*
+ */
+export function getPreferredOrigin(request: Request): string {
+  const scheme = getPreferredScheme(request);
+  const host = getPreferredHost(request);
+  const port = getPreferredPort(request);
+
+  if (!port) {
+    return `${scheme}://${host}`;
+  }
+
+  if ((scheme === 'https' && port === '443') || (scheme === 'http' && port === '80')) {
+    return `${scheme}://${host}`;
+  }
+
+  return `${scheme}://${host}:${port}`;
+}
